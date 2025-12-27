@@ -84,9 +84,9 @@
   /* Muted warm gray */
   --muted: oklch(0.94 0.01 80);
   --muted-foreground: oklch(0.45 0.02 30);
-  /* Accent: Golden amber */
-  --accent: oklch(0.82 0.14 80);
-  --accent-foreground: oklch(0.25 0.05 60);
+  /* Accent: Soft coral (matches primary) */
+  --accent: oklch(0.92 0.06 25);
+  --accent-foreground: oklch(0.25 0.05 30);
   --destructive: oklch(0.55 0.22 25);
   /* Warm borders */
   --border: oklch(0.88 0.02 70);
@@ -126,9 +126,9 @@
   /* Muted */
   --muted: oklch(0.22 0.02 45);
   --muted-foreground: oklch(0.65 0.02 70);
-  /* Accent: Golden glow */
-  --accent: oklch(0.75 0.15 75);
-  --accent-foreground: oklch(0.15 0.03 50);
+  /* Accent: Soft coral (matches primary) */
+  --accent: oklch(0.30 0.08 25);
+  --accent-foreground: oklch(0.95 0.02 25);
   --destructive: oklch(0.62 0.2 20);
   /* Warm borders */
   --border: oklch(0.28 0.02 50);

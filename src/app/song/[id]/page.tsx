@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import { SonglistSheet } from "@/components/songlist-sheet";
 import { useTheme } from "next-themes";
 import ReactMarkdown from "react-markdown";
+import { SeamlessPdfViewer } from "@/components/seamless-pdf-viewer";
 
 type ViewMode = "lyrics" | "music";
 
@@ -651,17 +652,7 @@ function MusicViewer({
     );
   }
 
-  // PDF - add params to hide sidebar, toolbar and fit page
-  // navpanes=0 hides sidebar, toolbar=0 hides toolbar, view=FitH fits width
-  const pdfUrl = `${data}#navpanes=0&toolbar=0&view=FitH`;
-  
-  return (
-    <iframe
-      src={pdfUrl}
-      className="w-full border-0 transition-all duration-300"
-      style={{ height: isImmersive ? "100vh" : "calc(100vh - 4rem)" }}
-      title="Music Sheet PDF"
-    />
-  );
+  // Use seamless PDF viewer for better multi-page experience
+  return <SeamlessPdfViewer data={data} isImmersive={isImmersive} />;
 }
 

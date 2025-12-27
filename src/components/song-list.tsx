@@ -147,11 +147,12 @@ export function SongList({
           <span className="text-sm text-muted-foreground">
             0 songs
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 rounded-lg px-3 py-1.5 dark:bg-background/80 dark:backdrop-blur-sm dark:border dark:border-border/50">
             <Switch
               id="christmas-mode"
               checked={christmasMode}
               onCheckedChange={onChristmasModeChange}
+              className="data-[state=unchecked]:bg-muted-foreground/30"
             />
             <Label htmlFor="christmas-mode" className="text-sm cursor-pointer">
               🎄 Christmas Mode
@@ -175,23 +176,24 @@ export function SongList({
     <div className="page-transition flex flex-col items-center">
       {/* Controls */}
       <div className="flex items-center justify-between mb-4 mt-4 w-fit min-w-[400px]">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           {songs.length} song{songs.length !== 1 ? "s" : ""}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 rounded-lg px-3 py-1.5 dark:bg-background/80 dark:backdrop-blur-sm dark:border dark:border-border/50">
           <Switch
             id="christmas-mode"
             checked={christmasMode}
             onCheckedChange={onChristmasModeChange}
+            className="data-[state=unchecked]:bg-muted-foreground/30"
           />
-          <Label htmlFor="christmas-mode" className="text-sm cursor-pointer">
+          <Label htmlFor="christmas-mode" className="text-base cursor-pointer">
             🎄 Christmas Mode
           </Label>
         </div>
       </div>
 
       {/* Song table */}
-      <div className="rounded-md border w-fit">
+      <div className="rounded-md border min-w-[700px] w-[780px] bg-background/80 backdrop-blur-xl [&_*]:text-black dark:[&_*]:text-white">
         <Table>
           <TableHeader>
             <TableRow>
@@ -203,7 +205,7 @@ export function SongList({
                   variant="ghost"
                   onClick={() => onToggleSort("title")}
                   className={cn(
-                    "-ml-4 h-8 data-[state=open]:bg-accent",
+                    "-ml-4 h-10 text-base data-[state=open]:bg-accent",
                     sortField === "title" && "text-foreground"
                   )}
                 >
@@ -216,7 +218,7 @@ export function SongList({
                   variant="ghost"
                   onClick={() => onToggleSort("artist")}
                   className={cn(
-                    "-ml-4 h-8 data-[state=open]:bg-accent",
+                    "-ml-4 h-10 text-base data-[state=open]:bg-accent",
                     sortField === "artist" && "text-foreground"
                   )}
                 >
@@ -252,15 +254,17 @@ export function SongList({
                 <TableCell>
                   <Link
                     href={`/song/${song.id}`}
-                    className="flex items-center gap-2 font-medium hover:underline"
+                    className="flex items-center gap-2 font-medium hover:underline text-lg"
                   >
                     {song.title}
-                    {song.isXmas && <span className="text-sm">🎄</span>}
-                    {song.isMovie && <span className="text-sm">🎬</span>}
+                    {song.isXmas && <span className="text-base">🎄</span>}
                   </Link>
                 </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {song.artist}
+                <TableCell className="text-muted-foreground text-lg">
+                  <span className="flex items-center gap-2">
+                    {song.artist}
+                    {song.isMovie && <span className="text-base">🎬</span>}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
