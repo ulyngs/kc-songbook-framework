@@ -11,15 +11,11 @@ export function SeamlessPdfViewer({ data, isImmersive = false }: SeamlessPdfView
   const pdfUrl = `${data}#navpanes=0&toolbar=0&view=FitH`;
   
   return (
-    <div 
-      className="w-full bg-black"
+    <iframe
+      src={pdfUrl}
+      className="w-full border-0"
       style={{ height: isImmersive ? "100vh" : "calc(100vh - 4rem)" }}
-    >
-      <iframe
-        src={pdfUrl}
-        className="w-full h-full border-0"
-        title="Music Sheet PDF"
-      />
-    </div>
+      title="Music Sheet PDF"
+    />
   );
 }
