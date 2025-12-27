@@ -22,7 +22,6 @@ interface HeaderProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onAddSong: () => void;
-  onBulkUpload: () => void;
   onDataManagement: () => void;
 }
 
@@ -30,7 +29,6 @@ export function Header({
   searchQuery,
   onSearchChange,
   onAddSong,
-  onBulkUpload,
   onDataManagement,
 }: HeaderProps) {
   const { theme, setTheme } = useTheme();
@@ -99,10 +97,6 @@ export function Header({
                 <DropdownMenuItem onClick={onAddSong} className="text-base py-2">
                   <Plus className="h-5 w-5 mr-2" />
                   Add Single Song
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onBulkUpload} className="text-base py-2">
-                  <Upload className="h-5 w-5 mr-2" />
-                  Bulk Upload (Public Domain)
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onDataManagement} className="text-base py-2">

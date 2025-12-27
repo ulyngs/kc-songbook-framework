@@ -6,7 +6,6 @@ import { seedExampleSongs } from "@/lib/seed-data";
 import { SongList } from "@/components/song-list";
 import { Header } from "@/components/header";
 import { AddSongDialog } from "@/components/add-song-dialog";
-import { BulkUploadDialog } from "@/components/bulk-upload-dialog";
 import { DataManagementDialog } from "@/components/data-management-dialog";
 import { EmptyState } from "@/components/empty-state";
 
@@ -20,7 +19,6 @@ export default function Home() {
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [isLoading, setIsLoading] = useState(true);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [dataManagementOpen, setDataManagementOpen] = useState(false);
   const [christmasMode, setChristmasMode] = useState(false);
 
@@ -88,10 +86,6 @@ export default function Home() {
     setAddDialogOpen(false);
   };
 
-  const handleBulkUpload = () => {
-    loadSongs();
-    setBulkUploadOpen(false);
-  };
 
   const handleDeleteSong = async (id: string) => {
     await deleteSong(id);
@@ -114,7 +108,6 @@ export default function Home() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onAddSong={() => setAddDialogOpen(true)}
-          onBulkUpload={() => setBulkUploadOpen(true)}
           onDataManagement={() => setDataManagementOpen(true)}
         />
 
@@ -128,7 +121,6 @@ export default function Home() {
           ) : songs.length === 0 ? (
             <EmptyState
               onAddSong={() => setAddDialogOpen(true)}
-              onBulkUpload={() => setBulkUploadOpen(true)}
             />
           ) : (
             <SongList
@@ -151,11 +143,7 @@ export default function Home() {
           onSongAdded={handleSongAdded}
         />
 
-        <BulkUploadDialog
-          open={bulkUploadOpen}
-          onOpenChange={setBulkUploadOpen}
-          onUploadComplete={handleBulkUpload}
-        />
+
 
         <DataManagementDialog
           open={dataManagementOpen}

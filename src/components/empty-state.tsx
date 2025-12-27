@@ -1,14 +1,13 @@
 "use client";
 
-import { Music, Plus, Upload } from "lucide-react";
+import { Music, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface EmptyStateProps {
   onAddSong: () => void;
-  onBulkUpload: () => void;
 }
 
-export function EmptyState({ onAddSong, onBulkUpload }: EmptyStateProps) {
+export function EmptyState({ onAddSong }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-20 page-transition">
       <div className="relative mb-8">
@@ -22,7 +21,7 @@ export function EmptyState({ onAddSong, onBulkUpload }: EmptyStateProps) {
         Your Songbook is Empty
       </h2>
       <p className="text-muted-foreground text-center max-w-md mb-8">
-        Add your favorite karaoke songs with lyrics and music sheets. 
+        Add your favorite karaoke songs with lyrics and music sheets.
         Start building your personal collection!
       </p>
 
@@ -30,10 +29,6 @@ export function EmptyState({ onAddSong, onBulkUpload }: EmptyStateProps) {
         <Button onClick={onAddSong} size="lg" className="shadow-lg shadow-primary/20">
           <Plus className="h-5 w-5 mr-2" />
           Add Your First Song
-        </Button>
-        <Button onClick={onBulkUpload} variant="outline" size="lg">
-          <Upload className="h-5 w-5 mr-2" />
-          Bulk Upload
         </Button>
       </div>
 
@@ -60,7 +55,7 @@ export function EmptyState({ onAddSong, onBulkUpload }: EmptyStateProps) {
           </p>
         </div>
       </div>
-    </div>
+    </div >
   );
 }
 
