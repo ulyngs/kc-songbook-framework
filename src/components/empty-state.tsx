@@ -64,5 +64,3 @@ export function EmptyState({ onAddSong, onBulkUpload }: EmptyStateProps) {
   );
 }
 
-
-
