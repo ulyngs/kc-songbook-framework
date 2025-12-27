@@ -26,6 +26,11 @@ export async function seedExampleSongs(): Promise<number> {
     let seededCount = 0;
     
     for (const song of songs) {
+      // Only seed public domain songs
+      if (!song.isPublicDomain) {
+        continue;
+      }
+
       const id = song.title
         .toLowerCase()
         .replace(/['']/g, '')
