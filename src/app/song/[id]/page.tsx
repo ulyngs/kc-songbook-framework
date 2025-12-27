@@ -60,7 +60,7 @@ function getInitialFontSize(): number {
     const saved = localStorage.getItem("songbook-lyrics-font-size");
     if (saved) {
       const parsed = parseInt(saved, 10);
-      if (!isNaN(parsed) && parsed >= 14 && parsed <= 48) {
+      if (!isNaN(parsed) && parsed >= 14 && parsed <= 72) {
         return parsed;
       }
     }
@@ -131,7 +131,7 @@ export default function SongPage({
 
   // Wrapper to persist font size to localStorage
   const setLyricsFontSize = useCallback((size: number) => {
-    const clampedSize = Math.max(14, Math.min(48, size));
+    const clampedSize = Math.max(14, Math.min(72, size));
     setLyricsFontSizeState(clampedSize);
     if (typeof window !== "undefined") {
       localStorage.setItem("songbook-lyrics-font-size", String(clampedSize));
@@ -512,7 +512,7 @@ export default function SongPage({
                           size="icon"
                           className="h-6 w-6"
                           onClick={() => setLyricsFontSize(lyricsFontSize + 2)}
-                          disabled={lyricsFontSize >= 48}
+                          disabled={lyricsFontSize >= 72}
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
