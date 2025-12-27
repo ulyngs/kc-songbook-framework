@@ -1,0 +1,120 @@
+"use client";
+
+import { Search, Plus, Upload, Moon, Sun, Mic2, Settings, Download } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useTheme } from "next-themes";
+
+interface HeaderProps {
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  onAddSong: () => void;
+  onBulkUpload: () => void;
+  onDataManagement: () => void;
+}
+
+export function Header({
+  searchQuery,
+  onSearchChange,
+  onAddSong,
+  onBulkUpload,
+  onDataManagement,
+}: HeaderProps) {
+  const { theme, setTheme } = useTheme();
+
+  return (
+    <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+      <div className="container mx-auto px-4">
+        <div className="flex h-16 items-center justify-between gap-4">
+          {/* Logo */}
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
+              <Mic2 className="h-5 w-5" />
+            </div>
+            <div className="hidden sm:block">
+              <h1 className="font-display text-lg font-semibold tracking-tight">
+                Songbook
+              </h1>
+              <p className="text-xs text-muted-foreground -mt-0.5">
+                Karaoke Collective
+              </p>
+            </div>
+          </div>
+
+          {/* Search */}
+          <div className="flex-1 max-w-md">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search songs or artists..."
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="pl-10 bg-secondary/50 border-transparent focus:border-primary/50 focus:bg-background transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                    <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    <span className="sr-only">Toggle theme</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Toggle theme</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" className="shadow-lg shadow-primary/20">
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  <span className="hidden sm:inline">Add Song</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onClick={onAddSong}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Single Song
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onBulkUpload}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Bulk Upload (Public Domain)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onDataManagement}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Backup & Restore
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
