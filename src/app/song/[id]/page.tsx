@@ -213,57 +213,86 @@ export default function SongPage({
     setIsEditingFontSize(false);
   }, [fontSizeInputValue, lyricsFontSize, setLyricsFontSize]);
   
-  // Touch distance helper
-  const getTouchDistance = useCallback((touches: React.TouchList) => {
+  // Store setLyricsFontSize in a ref so event handlers always have latest version
+  const setLyricsFontSizeRef = useRef(setLyricsFontSize);
+  useEffect(() => {
+    setLyricsFontSizeRef.current = setLyricsFontSize;
+  }, [setLyricsFontSize]);
+  
+  // Track current font size in a ref so event handlers always have latest value
+  const lyricsFontSizeRef = useRef(lyricsFontSize);
+  useEffect(() => {
+    lyricsFontSizeRef.current = lyricsFontSize;
+  }, [lyricsFontSize]);
+  
+  // Callback ref for lyrics container - attaches event listeners when element mounts
+  const lyricsContainerRef = useRef<HTMLDivElement | null>(null);
+  const lyricsRefCallback = useCallback((node: HTMLDivElement | null) => {
+    // Cleanup old listeners if we had a previous node
+    if (lyricsContainerRef.current) {
+      const oldNode = lyricsContainerRef.current;
+      oldNode.removeEventListener("wheel", handleWheel);
+      oldNode.removeEventListener("touchstart", handleTouchStart);
+      oldNode.removeEventListener("touchmove", handleTouchMove);
+      oldNode.removeEventListener("touchend", handleTouchEnd);
+      oldNode.removeEventListener("touchcancel", handleTouchEnd);
+    }
+    
+    // Store the new node
+    lyricsContainerRef.current = node;
+    // Also update lyricsRef for scrolling functionality
+    lyricsRef.current = node;
+    
+    // Attach new listeners if we have a node
+    if (node) {
+      node.addEventListener("wheel", handleWheel, { passive: false });
+      node.addEventListener("touchstart", handleTouchStart, { passive: false });
+      node.addEventListener("touchmove", handleTouchMove, { passive: false });
+      node.addEventListener("touchend", handleTouchEnd);
+      node.addEventListener("touchcancel", handleTouchEnd);
+    }
+  }, []);
+  
+  // Stable event handler functions that use refs to access current state
+  function handleWheel(e: WheelEvent) {
+    if (e.ctrlKey) {
+      e.preventDefault();
+      const zoomFactor = 1 - e.deltaY * 0.01;
+      const newSize = Math.round(lyricsFontSizeRef.current * zoomFactor);
+      setLyricsFontSizeRef.current(newSize, true);
+    }
+  }
+  
+  function getTouchDistance(touches: TouchList) {
     if (touches.length < 2) return 0;
     const dx = touches[0].clientX - touches[1].clientX;
     const dy = touches[0].clientY - touches[1].clientY;
     return Math.sqrt(dx * dx + dy * dy);
-  }, []);
+  }
   
-  // Lyrics touch handlers for pinch-to-zoom
-  const handleLyricsTouchStart = useCallback((e: React.TouchEvent) => {
+  function handleTouchStart(e: TouchEvent) {
     if (e.touches.length === 2) {
       e.preventDefault();
       lyricsTouchStateRef.current = {
         initialDistance: getTouchDistance(e.touches),
-        initialFontSize: lyricsFontSize,
+        initialFontSize: lyricsFontSizeRef.current,
       };
     }
-  }, [getTouchDistance, lyricsFontSize]);
+  }
   
-  const handleLyricsTouchMove = useCallback((e: React.TouchEvent) => {
+  function handleTouchMove(e: TouchEvent) {
     if (e.touches.length === 2 && lyricsTouchStateRef.current) {
       e.preventDefault();
       const currentDistance = getTouchDistance(e.touches);
       const scaleChange = currentDistance / lyricsTouchStateRef.current.initialDistance;
       const newSize = Math.round(lyricsTouchStateRef.current.initialFontSize * scaleChange);
-      setLyricsFontSize(newSize, true);
+      setLyricsFontSizeRef.current(newSize, true);
     }
-  }, [getTouchDistance, setLyricsFontSize]);
+  }
   
-  const handleLyricsTouchEnd = useCallback(() => {
+  function handleTouchEnd() {
     lyricsTouchStateRef.current = null;
-  }, []);
-  
-  // Wheel handler for lyrics pinch-to-zoom (desktop trackpad)
-  const handleLyricsWheel = useCallback((e: WheelEvent) => {
-    if (e.ctrlKey) {
-      e.preventDefault();
-      const zoomFactor = 1 - e.deltaY * 0.01;
-      const newSize = Math.round(lyricsFontSize * zoomFactor);
-      setLyricsFontSize(newSize, true);
-    }
-  }, [lyricsFontSize, setLyricsFontSize]);
-  
-  // Attach wheel listener to lyrics container
-  useEffect(() => {
-    const container = lyricsRef.current;
-    if (!container || viewMode !== "lyrics" || isEditing) return;
-    
-    container.addEventListener("wheel", handleLyricsWheel, { passive: false });
-    return () => container.removeEventListener("wheel", handleLyricsWheel);
-  }, [handleLyricsWheel, viewMode, isEditing]);
+  }
 
   // Load saved font size on mount
   useEffect(() => {
@@ -814,13 +843,9 @@ export default function SongPage({
                     
                     {/* Scrollable lyrics container */}
                     <div
-                      ref={lyricsRef}
+                      ref={lyricsRefCallback}
                       className="flex-1 p-8 sm:p-12 overflow-y-auto"
                       style={{ touchAction: "pan-y" }}
-                      onTouchStart={handleLyricsTouchStart}
-                      onTouchMove={handleLyricsTouchMove}
-                      onTouchEnd={handleLyricsTouchEnd}
-                      onTouchCancel={handleLyricsTouchEnd}
                     >
                       <div className="lyrics-text font-sans max-w-none whitespace-nowrap" style={{ fontSize: `${lyricsFontSize}px` }}>
                         <ReactMarkdown
