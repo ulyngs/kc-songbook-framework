@@ -78,7 +78,7 @@ export function SeamlessPdfViewer({
   }, [isImmersive]);
 
   // Calculate distance between two touch points
-  const getTouchDistance = useCallback((touches: TouchList) => {
+  const getTouchDistance = useCallback((touches: React.TouchList) => {
     if (touches.length < 2) return 0;
     const dx = touches[0].clientX - touches[1].clientX;
     const dy = touches[0].clientY - touches[1].clientY;
@@ -86,7 +86,7 @@ export function SeamlessPdfViewer({
   }, []);
 
   // Get center point between two touches
-  const getTouchCenter = useCallback((touches: TouchList) => {
+  const getTouchCenter = useCallback((touches: React.TouchList) => {
     if (touches.length < 2) {
       return { x: touches[0].clientX, y: touches[0].clientY };
     }
@@ -143,6 +143,7 @@ export function SeamlessPdfViewer({
         const renderTask = page.render({
           canvasContext: offscreenCtx,
           viewport: viewport,
+          canvas: offscreen,
         });
         
         renderTasksRef.current[pageNum - 1] = renderTask;
