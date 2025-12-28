@@ -130,7 +130,7 @@ export default function SongPage({
 
   // Auto-scroll state
   const [isScrolling, setIsScrolling] = useState(false);
-  const [scrollSpeed, setScrollSpeed] = useState(30); // pixels per second
+  const [scrollSpeed, setScrollSpeed] = useState(15); // pixels per second (displayed as speed / 5)
   const lyricsRef = useRef<HTMLDivElement>(null);
   const scrollAnimationRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
@@ -366,7 +366,7 @@ export default function SongPage({
   }, [viewMode, isEditing]);
 
   const adjustSpeed = useCallback((delta: number) => {
-    setScrollSpeed((prev) => Math.max(10, Math.min(150, prev + delta)));
+    setScrollSpeed((prev) => Math.max(5, Math.min(75, prev + delta)));
   }, []);
 
   useEffect(() => {
@@ -889,15 +889,15 @@ export default function SongPage({
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => adjustSpeed(-10)}
-                          disabled={scrollSpeed <= 10}
+                          onClick={() => adjustSpeed(-5)}
+                          disabled={scrollSpeed <= 5}
                           title="Slower"
                         >
                           <Minus className="h-3.5 w-3.5" />
                         </Button>
                         <div className="flex items-center gap-1 px-1">
                           <span className="text-sm text-muted-foreground w-2 text-center font-mono">
-                            {scrollSpeed / 10}
+                            {scrollSpeed / 5}
                           </span>
                           <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
                         </div>
@@ -905,8 +905,8 @@ export default function SongPage({
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => adjustSpeed(10)}
-                          disabled={scrollSpeed >= 150}
+                          onClick={() => adjustSpeed(5)}
+                          disabled={scrollSpeed >= 75}
                           title="Faster"
                         >
                           <Plus className="h-3.5 w-3.5" />
