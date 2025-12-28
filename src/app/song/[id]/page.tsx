@@ -27,7 +27,9 @@ import {
   Minimize2,
   Heart,
   ALargeSmall,
+  ZoomIn,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -135,6 +137,28 @@ export default function SongPage({
 
   // Font size state
   const [lyricsFontSize, setLyricsFontSizeState] = useState(22);
+
+  // PDF zoom state
+  const [pdfZoom, setPdfZoom] = useState(1);
+  const [isEditingZoom, setIsEditingZoom] = useState(false);
+  const [zoomInputValue, setZoomInputValue] = useState("100");
+
+  const handleZoomChange = useCallback((newZoom: number) => {
+    const clampedZoom = Math.max(0.5, Math.min(5, newZoom));
+    setPdfZoom(clampedZoom);
+    setZoomInputValue(Math.round(clampedZoom * 100).toString());
+  }, []);
+
+  const handleZoomInputSubmit = useCallback(() => {
+    const parsed = parseInt(zoomInputValue, 10);
+    if (!isNaN(parsed) && parsed >= 50 && parsed <= 500) {
+      handleZoomChange(parsed / 100);
+    } else {
+      // Reset to current zoom if invalid
+      setZoomInputValue(Math.round(pdfZoom * 100).toString());
+    }
+    setIsEditingZoom(false);
+  }, [zoomInputValue, pdfZoom, handleZoomChange]);
 
   // Wrapper to persist font size to localStorage
   const setLyricsFontSize = useCallback((size: number) => {
@@ -413,6 +437,66 @@ export default function SongPage({
                 </Button>
               </div>
 
+              {/* PDF Zoom controls - show in music view */}
+              {viewMode === "music" && hasMusic && (
+                <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => handleZoomChange(pdfZoom - 0.15)}
+                    disabled={pdfZoom <= 0.5}
+                    title="Zoom out (15%)"
+                  >
+                    <Minus className="h-3.5 w-3.5" />
+                  </Button>
+                  
+                  {isEditingZoom ? (
+                    <Input
+                      type="number"
+                      value={zoomInputValue}
+                      onChange={(e) => setZoomInputValue(e.target.value)}
+                      onBlur={handleZoomInputSubmit}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleZoomInputSubmit();
+                        } else if (e.key === "Escape") {
+                          setZoomInputValue(Math.round(pdfZoom * 100).toString());
+                          setIsEditingZoom(false);
+                        }
+                      }}
+                      className="w-14 h-7 text-center text-sm px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      min={50}
+                      max={500}
+                      autoFocus
+                    />
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setZoomInputValue(Math.round(pdfZoom * 100).toString());
+                        setIsEditingZoom(true);
+                      }}
+                      className="flex items-center gap-1 px-2 h-7 text-sm font-medium hover:bg-background/50 rounded transition-colors min-w-[3.5rem] justify-center"
+                      title="Click to enter custom zoom"
+                    >
+                      <ZoomIn className="h-3.5 w-3.5 opacity-50" />
+                      {Math.round(pdfZoom * 100)}%
+                    </button>
+                  )}
+                  
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => handleZoomChange(pdfZoom + 0.15)}
+                    disabled={pdfZoom >= 5}
+                    title="Zoom in (15%)"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+
               {/* Edit button - only show in lyrics view */}
               {viewMode === "lyrics" && (
                 isEditing ? (
@@ -653,6 +737,8 @@ export default function SongPage({
                     data={song.musicData!}
                     fileName={song.musicFileName}
                     isImmersive={isHeaderHidden && !isHeaderHovered}
+                    zoom={pdfZoom}
+                    onZoomChange={handleZoomChange}
                   />
                 ) : (
                   <div className="text-center py-16">
@@ -676,11 +762,15 @@ function MusicViewer({
   data,
   fileName,
   isImmersive = false,
+  zoom,
+  onZoomChange,
 }: {
   type: "pdf" | "image" | "text";
   data: string;
   fileName?: string;
   isImmersive?: boolean;
+  zoom?: number;
+  onZoomChange?: (zoom: number) => void;
 }) {
   if (type === "text") {
     return (
@@ -706,6 +796,13 @@ function MusicViewer({
   }
 
   // Use seamless PDF viewer for better multi-page experience
-  return <SeamlessPdfViewer data={data} isImmersive={isImmersive} />;
+  return (
+    <SeamlessPdfViewer 
+      data={data} 
+      isImmersive={isImmersive}
+      zoom={zoom}
+      onZoomChange={onZoomChange}
+    />
+  );
 }
 
