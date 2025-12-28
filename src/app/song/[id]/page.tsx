@@ -414,8 +414,22 @@ export default function SongPage({
                   className="flex flex-col items-center text-center min-w-0 transition-[width] duration-300 shrink-0"
                   style={{ width: maxTitleWidth ? `${Math.max(20, maxTitleWidth)}ch` : 'auto', maxWidth: '60vw' }}
                 >
-                  <h1 className="font-display font-semibold truncate w-full">
-                    {song.title}
+                  <h1 className="font-display font-semibold truncate w-full flex items-center justify-center gap-3">
+                    <span className="truncate">{song.title}</span>
+                    <button
+                      onClick={handleToggleFavourite}
+                      className="inline-flex shrink-0 hover:scale-110 transition-transform"
+                      title={song.isFavourite ? "Remove from favourites" : "Add to favourites"}
+                    >
+                      <Heart
+                        className={cn(
+                          "h-4 w-4 transition-colors",
+                          song.isFavourite
+                            ? "fill-current text-foreground"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      />
+                    </button>
                   </h1>
                   <p className="text-sm text-muted-foreground truncate w-full">
                     {song.artist}
@@ -615,24 +629,6 @@ export default function SongPage({
                   <>
                     {/* Auto-scroll controls - fixed to right side */}
                     <div className="fixed right-4 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center gap-2 bg-card/90 backdrop-blur-sm rounded-xl border border-border/50 p-2 shadow-lg">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={handleToggleFavourite}
-                      >
-                        <Heart
-                          className={cn(
-                            "h-4 w-4 transition-colors",
-                            song.isFavourite
-                              ? "fill-foreground text-foreground"
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
-                        />
-                      </Button>
-
-                      <div className="w-full h-px bg-border my-1" />
-
                       {/* Font size controls */}
                       <div className="flex items-center gap-0.5">
                         <Button
