@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import path from "path";
 
 // Server-side only password - NOT exposed to client
-const KC_PASSWORD = process.env.KC_COLLECTION_PASSWORD || "karaokecollective";
+const KC_PASSWORD = process.env.KC_COLLECTION_PASSWORD;
 
 export async function POST(request: NextRequest) {
     try {
