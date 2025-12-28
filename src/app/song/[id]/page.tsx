@@ -11,7 +11,7 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
-  FileText,
+  LetterText,
   Music,
   Edit3,
   Save,
@@ -509,9 +509,9 @@ export default function SongPage({
             }
           }}
         >
-          <div className="container mx-auto px-4">
-            <div className="flex h-16 items-center gap-4">
-              <div className="flex items-center gap-1">
+          <div className="container mx-auto px-2 sm:px-4">
+            <div className="flex h-16 items-center gap-2 sm:gap-4">
+              <div className="flex items-center gap-1 shrink-0">
                 <Link
                   href="/"
                   className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors p-2 -ml-2"
@@ -521,60 +521,62 @@ export default function SongPage({
                 <SonglistSheet currentSongId={song.id} />
               </div>
 
-              <div className="flex-1 min-w-0 flex items-center justify-center gap-1 sm:gap-5">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "shrink-0 h-8 w-8 text-muted-foreground hover:text-foreground",
-                    !prevSongId && "opacity-0 pointer-events-none"
-                  )}
-                  onClick={() => prevSongId && router.push(`/song/${prevSongId}`)}
-                  disabled={!prevSongId}
-                  title="Previous song"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
+              {/* Song title with prev/next - centered, fixed width on large screens */}
+              <div className="flex-1 flex items-center justify-center min-w-0">
+                <div className="flex items-center gap-1 sm:gap-2 max-w-full lg:w-[21vw]">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "shrink-0 h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground",
+                      !prevSongId && "opacity-0 pointer-events-none"
+                    )}
+                    onClick={() => prevSongId && router.push(`/song/${prevSongId}`)}
+                    disabled={!prevSongId}
+                    title="Previous song"
+                  >
+                    <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </Button>
 
-                <div
-                  className="flex flex-col items-center text-center min-w-0 transition-[width] duration-300 shrink-0"
-                  style={{ width: maxTitleWidth ? `${Math.max(20, maxTitleWidth)}ch` : 'auto', maxWidth: '60vw' }}
-                >
-                  <h1 className="font-display font-semibold truncate w-full flex items-center justify-center gap-3">
-                    <span className="truncate">{song.title}</span>
-                    <button
-                      onClick={handleToggleFavourite}
-                      className="inline-flex shrink-0 hover:scale-110 transition-transform"
-                      title={song.isFavourite ? "Remove from favourites" : "Add to favourites"}
-                    >
-                      <Heart
-                        className={cn(
-                          "h-4 w-4 transition-colors",
-                          song.isFavourite
-                            ? "fill-current text-foreground"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      />
-                    </button>
-                  </h1>
-                  <p className="text-sm text-muted-foreground truncate w-full">
-                    {song.artist}
-                  </p>
+                  <div
+                    className="flex flex-col items-center text-center min-w-0 flex-1"
+                  >
+                    <h1 className="font-display text-sm sm:text-base font-semibold truncate w-full flex items-center justify-center gap-1.5 sm:gap-3">
+                      <span className="truncate">{song.title}</span>
+                      <button
+                        onClick={handleToggleFavourite}
+                        className="inline-flex shrink-0 hover:scale-110 transition-transform"
+                        title={song.isFavourite ? "Remove from favourites" : "Add to favourites"}
+                      >
+                        <Heart
+                          className={cn(
+                            "h-3.5 w-3.5 sm:h-4 sm:w-4 transition-colors",
+                            song.isFavourite
+                              ? "fill-current text-foreground"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        />
+                      </button>
+                    </h1>
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate w-full">
+                      {song.artist}
+                    </p>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "shrink-0 h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground",
+                      !nextSongId && "opacity-0 pointer-events-none"
+                    )}
+                    onClick={() => nextSongId && router.push(`/song/${nextSongId}`)}
+                    disabled={!nextSongId}
+                    title="Next song"
+                  >
+                    <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </Button>
                 </div>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "shrink-0 h-8 w-8 text-muted-foreground hover:text-foreground",
-                    !nextSongId && "opacity-0 pointer-events-none"
-                  )}
-                  onClick={() => nextSongId && router.push(`/song/${nextSongId}`)}
-                  disabled={!nextSongId}
-                  title="Next song"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
               </div>
 
               {/* PDF Zoom controls - show in music view */}
@@ -727,8 +729,8 @@ export default function SongPage({
                     size="sm"
                     onClick={() => setIsEditing(true)}
                   >
-                    <Edit3 className="h-4 w-4 sm:mr-1.5" />
-                    <span className="hidden sm:inline">Edit</span>
+                    <Edit3 className="h-4 w-4 lg:mr-1.5" />
+                    <span className="hidden lg:inline">Edit</span>
                   </Button>
                 )
               )}
@@ -745,19 +747,19 @@ export default function SongPage({
                     value="lyrics"
                     aria-label="View lyrics"
                     disabled={!hasLyrics}
-                    className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm px-3"
+                    className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm px-2 sm:px-3"
                   >
-                    <FileText className="h-4 w-4 mr-1.5" />
-                    <span className="hidden sm:inline">Lyrics</span>
+                    <LetterText className="h-4 w-4 sm:mr-1.5" />
+                    <span className="hidden lg:inline">Lyrics</span>
                   </ToggleGroupItem>
                   <ToggleGroupItem
                     value="music"
                     aria-label="View music"
                     disabled={!hasMusic}
-                    className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm px-3"
+                    className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm px-2 sm:px-3"
                   >
-                    <Music className="h-4 w-4 mr-1.5" />
-                    <span className="hidden sm:inline">Music</span>
+                    <Music className="h-4 w-4 sm:mr-1.5" />
+                    <span className="hidden lg:inline">Music</span>
                   </ToggleGroupItem>
                 </ToggleGroup>
               )}
@@ -914,7 +916,7 @@ export default function SongPage({
                   </div>
                 ) : (
                   <div className="text-center py-16">
-                    <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                    <LetterText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
                     <p className="text-muted-foreground mb-4">
                       No lyrics added yet
                     </p>

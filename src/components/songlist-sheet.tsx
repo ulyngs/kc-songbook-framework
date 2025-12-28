@@ -142,8 +142,8 @@ export function SonglistSheet({ currentSongId }: SonglistSheetProps) {
             size="sm"
             className="text-muted-foreground hover:text-foreground"
           >
-            <List className="h-4 w-4 sm:mr-1.5" />
-            <span className="hidden sm:inline">Songs</span>
+            <List className="h-4 w-4 lg:mr-1.5" />
+            <span className="hidden lg:inline">Songs</span>
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="w-80 p-0">
