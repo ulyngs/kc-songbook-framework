@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Large data files (stored in Netlify Blobs)
+src/data/kc-collection.json
+
+# Local Netlify folder
+.netlify
