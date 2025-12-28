@@ -141,13 +141,13 @@ export function SongList({
 
   if (songs.length === 0 && christmasMode) {
     return (
-      <div className="page-transition">
+      <div className="page-transition w-full">
         {/* Controls */}
-        <div className="flex items-center justify-between mb-4 px-1">
+        <div className="flex items-center justify-between mb-4 px-2 sm:px-1">
           <span className="text-sm text-muted-foreground">
             0 songs
           </span>
-          <div className="flex items-center gap-2 rounded-lg px-3 py-1.5 dark:bg-background/80 dark:backdrop-blur-sm dark:border dark:border-border/50">
+          <div className="flex items-center gap-2 rounded-lg px-2 sm:px-3 py-1.5 dark:bg-background/80 dark:backdrop-blur-sm dark:border dark:border-border/50">
             <Switch
               id="christmas-mode"
               checked={christmasMode}
@@ -155,7 +155,7 @@ export function SongList({
               className="data-[state=unchecked]:bg-muted-foreground/30"
             />
             <Label htmlFor="christmas-mode" className="text-sm cursor-pointer">
-              🎄 Christmas Mode
+              🎄 <span className="hidden sm:inline">Christmas </span>Mode
             </Label>
           </div>
         </div>
@@ -173,27 +173,122 @@ export function SongList({
   }
 
   return (
-    <div className="page-transition flex flex-col items-center">
+    <div className="page-transition flex flex-col items-center w-full">
       {/* Controls */}
-      <div className="flex items-center justify-between mb-4 mt-4 w-fit min-w-[400px]">
-        <p className="text-base text-muted-foreground">
+      <div className="flex items-center justify-between mb-4 mt-4 w-full max-w-3xl px-2 sm:px-0">
+        <p className="text-sm sm:text-base text-muted-foreground">
           {songs.length} song{songs.length !== 1 ? "s" : ""}
         </p>
-        <div className="flex items-center gap-2 rounded-lg px-3 py-1.5 dark:bg-background/80 dark:backdrop-blur-sm dark:border dark:border-border/50">
+        <div className="flex items-center gap-2 rounded-lg px-2 sm:px-3 py-1.5 dark:bg-background/80 dark:backdrop-blur-sm dark:border dark:border-border/50">
           <Switch
             id="christmas-mode"
             checked={christmasMode}
             onCheckedChange={onChristmasModeChange}
             className="data-[state=unchecked]:bg-muted-foreground/30"
           />
-          <Label htmlFor="christmas-mode" className="text-base cursor-pointer">
-            🎄 Christmas Mode
+          <Label htmlFor="christmas-mode" className="text-sm sm:text-base cursor-pointer">
+            🎄 <span className="hidden sm:inline">Christmas </span>Mode
           </Label>
         </div>
       </div>
 
-      {/* Song table */}
-      <div className="rounded-md border min-w-[700px] w-[780px] bg-background/80 backdrop-blur-xl [&_*]:text-black dark:[&_*]:text-white">
+      {/* Mobile card layout */}
+      <div className="md:hidden w-full px-2 space-y-2">
+        {/* Mobile sort controls */}
+        <div className="flex gap-2 mb-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onToggleSort("title")}
+            className={cn(
+              "flex-1 text-sm",
+              sortField === "title" && "bg-accent"
+            )}
+          >
+            Song
+            <SortIcon field="title" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onToggleSort("artist")}
+            className={cn(
+              "flex-1 text-sm",
+              sortField === "artist" && "bg-accent"
+            )}
+          >
+            Artist
+            <SortIcon field="artist" />
+          </Button>
+        </div>
+        
+        {/* Song cards */}
+        {songs.map((song) => (
+          <div
+            key={song.id}
+            className="bg-background/80 backdrop-blur-xl rounded-lg border p-3 flex items-center gap-3"
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 flex-shrink-0"
+              onClick={() => handleToggleFavourite(song)}
+            >
+              <Heart
+                className={cn(
+                  "h-4 w-4 transition-colors",
+                  song.isFavourite
+                    ? "fill-foreground text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              />
+            </Button>
+            
+            <Link
+              href={`/song/${song.id}`}
+              className="flex-1 min-w-0"
+            >
+              <div className="font-medium text-base truncate flex items-center gap-1.5">
+                {song.title}
+                {song.isXmas && <span className="text-sm flex-shrink-0">🎄</span>}
+              </div>
+              <div className="text-sm text-muted-foreground truncate flex items-center gap-1.5">
+                {song.artist}
+                {song.isMovie && <span className="text-sm flex-shrink-0">🎬</span>}
+              </div>
+            </Link>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="flex h-8 w-8 p-0 data-[state=open]:bg-muted flex-shrink-0"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Open menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[160px]">
+                <DropdownMenuItem onClick={() => handleEdit(song)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => handleDelete(song)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table layout */}
+      <div className="hidden md:block rounded-md border w-full max-w-3xl bg-background/80 backdrop-blur-xl [&_*]:text-black dark:[&_*]:text-white">
         <Table>
           <TableHeader>
             <TableRow>
