@@ -1,4 +1,4 @@
-import { getSong, addSong, Song } from "./db";
+import { getSong, addSong, updateSong, Song } from "./db";
 
 interface SeedSong {
   title: string;
@@ -21,10 +21,10 @@ export async function seedExampleSongs(): Promise<number> {
       console.log("No seed songs found");
       return 0;
     }
-    
+
     const songs: SeedSong[] = await response.json();
     let seededCount = 0;
-    
+
     for (const song of songs) {
       // Only seed public domain songs
       if (!song.isPublicDomain) {
@@ -36,13 +36,37 @@ export async function seedExampleSongs(): Promise<number> {
         .replace(/['']/g, '')
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
-      
+
       // Check if already exists
       const existing = await getSong(id);
       if (existing) {
+        // If it exists, check if it needs update
+        // We compare key fields to see if the seed data has changed (e.g. fixed PDF)
+        const needsUpdate =
+          existing.artist !== song.artist ||
+          existing.lyrics !== song.lyrics ||
+          existing.musicData !== song.musicData ||
+          existing.musicType !== song.musicType;
+
+        if (needsUpdate) {
+          console.log(`Updating seed song: ${song.title}`);
+          await updateSong(id, {
+            title: song.title,
+            artist: song.artist,
+            key: song.key,
+            isXmas: song.isXmas,
+            isMovie: song.isMovie,
+            isPublicDomain: song.isPublicDomain ?? false,
+            lyrics: song.lyrics,
+            musicType: song.musicType,
+            musicData: song.musicData,
+            musicFileName: song.musicFileName,
+          });
+          seededCount++;
+        }
         continue;
       }
-      
+
       await addSong({
         title: song.title,
         artist: song.artist,
@@ -55,10 +79,10 @@ export async function seedExampleSongs(): Promise<number> {
         musicData: song.musicData,
         musicFileName: song.musicFileName,
       });
-      
+
       seededCount++;
     }
-    
+
     return seededCount;
   } catch (error) {
     console.warn("Could not seed example songs:", error);

@@ -3,12 +3,14 @@
 import { useState, useEffect, use, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Song, getSong, updateSong } from "@/lib/db";
+import { useRouter } from "next/navigation";
+import { Song, getSong, updateSong, getAllSongs } from "@/lib/db";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-  import {
+import {
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   FileText,
   Music,
   Edit3,
@@ -75,14 +77,18 @@ export default function SongPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [song, setSong] = useState<Song | null>(null);
+  const [prevSongId, setPrevSongId] = useState<string | null>(null);
+  const [nextSongId, setNextSongId] = useState<string | null>(null);
+  const [maxTitleWidth, setMaxTitleWidth] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewModeState] = useState<ViewMode>("lyrics");
   const [isEditing, setIsEditing] = useState(false);
   const [editedLyrics, setEditedLyrics] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Wrapper to persist view mode to localStorage
   const setViewMode = useCallback((mode: ViewMode) => {
     setViewModeState(mode);
@@ -172,14 +178,14 @@ export default function SongPage({
       if (lyricsRef.current) {
         // Accumulate fractional scroll amounts
         accumulatedScrollRef.current += scrollSpeed * deltaTime;
-        
+
         // Only scroll when we have at least 1 pixel accumulated
         if (accumulatedScrollRef.current >= 1) {
           const scrollAmount = Math.floor(accumulatedScrollRef.current);
           lyricsRef.current.scrollTop += scrollAmount;
           accumulatedScrollRef.current -= scrollAmount;
         }
-        
+
         // Stop at the bottom
         const { scrollTop, scrollHeight, clientHeight } = lyricsRef.current;
         if (scrollTop + clientHeight >= scrollHeight - 10) {
@@ -220,7 +226,7 @@ export default function SongPage({
         if (songData) {
           setSong(songData);
           setEditedLyrics(songData.lyrics || "");
-          
+
           // Adjust view mode based on what's available
           const savedMode = getInitialViewMode();
           if (savedMode === "lyrics" && !songData.lyrics && songData.musicData) {
@@ -228,6 +234,29 @@ export default function SongPage({
             setViewModeState("music");
           } else if (savedMode === "music" && !songData.musicData && songData.lyrics) {
             setViewModeState("lyrics");
+          }
+
+          // Calculate previous and next songs
+          try {
+            const allSongs = await getAllSongs();
+            // Filter by same type (Xmas vs Normal)
+            const isXmas = !!songData.isXmas;
+            const sameTypeSongs = allSongs
+              .filter(s => !!s.isXmas === isXmas)
+              .sort((a, b) => a.title.localeCompare(b.title));
+
+            const currentIndex = sameTypeSongs.findIndex(s => s.id === songData.id);
+            if (currentIndex !== -1) {
+              setPrevSongId(currentIndex > 0 ? sameTypeSongs[currentIndex - 1].id : null);
+              setNextSongId(currentIndex < sameTypeSongs.length - 1 ? sameTypeSongs[currentIndex + 1].id : null);
+            }
+
+            // Calculate max width for stable navigation buttons
+            // finding the longest title in the entire library
+            const maxLen = Math.max(...allSongs.map(s => s.title.length));
+            setMaxTitleWidth(maxLen);
+          } catch (err) {
+            console.error("Failed to load neighbor songs:", err);
           }
         }
       } catch (error) {
@@ -321,10 +350,9 @@ export default function SongPage({
         )}
 
         {/* Header */}
-        <header 
-          className={`sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl transition-all duration-300 ${
-            showHeader ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
-          }`}
+        <header
+          className={`sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl transition-all duration-300 ${showHeader ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
+            }`}
           onMouseLeave={() => {
             if (isHeaderHidden) {
               setIsHeaderHovered(false);
@@ -343,21 +371,47 @@ export default function SongPage({
                 <SonglistSheet currentSongId={song.id} />
               </div>
 
-              <div className="flex-1 min-w-0">
-                <h1 className="font-display font-semibold truncate">
-                  {song.title}
-                </h1>
-                <p className="text-sm text-muted-foreground truncate">
-                  {song.artist}
-                </p>
-              </div>
+              <div className="flex-1 min-w-0 flex items-center justify-center gap-1 sm:gap-5">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "shrink-0 h-8 w-8 text-muted-foreground hover:text-foreground",
+                    !prevSongId && "opacity-0 pointer-events-none"
+                  )}
+                  onClick={() => prevSongId && router.push(`/song/${prevSongId}`)}
+                  disabled={!prevSongId}
+                  title="Previous song"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
 
-              {/* Key badge */}
-              {song.key && (
-                <Badge variant="secondary" className="hidden sm:inline-flex font-mono">
-                  {song.key}
-                </Badge>
-              )}
+                <div
+                  className="flex flex-col items-center text-center min-w-0 transition-[width] duration-300 shrink-0"
+                  style={{ width: maxTitleWidth ? `${Math.max(20, maxTitleWidth)}ch` : 'auto', maxWidth: '60vw' }}
+                >
+                  <h1 className="font-display font-semibold truncate w-full">
+                    {song.title}
+                  </h1>
+                  <p className="text-sm text-muted-foreground truncate w-full">
+                    {song.artist}
+                  </p>
+                </div>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "shrink-0 h-8 w-8 text-muted-foreground hover:text-foreground",
+                    !nextSongId && "opacity-0 pointer-events-none"
+                  )}
+                  onClick={() => nextSongId && router.push(`/song/${nextSongId}`)}
+                  disabled={!nextSongId}
+                  title="Next song"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              </div>
 
               {/* Edit button - only show in lyrics view */}
               {viewMode === "lyrics" && (
@@ -458,10 +512,9 @@ export default function SongPage({
         </header>
 
         {/* Content */}
-        <main 
-          className={`transition-all duration-300 ${
-            viewMode === "lyrics" ? "container mx-auto px-4 py-3" : "px-0 py-0"
-          } ${isHeaderHidden && !isHeaderHovered ? "-mt-16" : ""}`}
+        <main
+          className={`transition-all duration-300 ${viewMode === "lyrics" ? "container mx-auto px-4 py-3" : "px-0 py-0"
+            } ${isHeaderHidden && !isHeaderHovered ? "-mt-16" : ""}`}
         >
           <div className="page-transition">
             {viewMode === "lyrics" ? (
@@ -493,9 +546,9 @@ export default function SongPage({
                           )}
                         />
                       </Button>
-                      
+
                       <div className="w-full h-px bg-border my-1" />
-                      
+
                       {/* Font size controls */}
                       <div className="flex items-center gap-0.5">
                         <Button
@@ -518,9 +571,9 @@ export default function SongPage({
                           <Plus className="h-3 w-3" />
                         </Button>
                       </div>
-                      
+
                       <div className="w-full h-px bg-border my-1" />
-                      
+
                       <Button
                         variant={isScrolling ? "default" : "outline"}
                         size="icon"
@@ -533,7 +586,7 @@ export default function SongPage({
                           <Play className="h-5 w-5" />
                         )}
                       </Button>
-                      
+
                       <div className="flex items-center gap-1 mt-1">
                         <Button
                           variant="ghost"

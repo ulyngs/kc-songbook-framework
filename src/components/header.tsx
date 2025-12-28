@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Plus, Upload, Moon, Sun, Mic2, Settings, Download } from "lucide-react";
+import { Search, Plus, Upload, Moon, Sun, Mic2, Settings, Download, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +22,7 @@ interface HeaderProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onAddSong: () => void;
+  onAddKCCollection: () => void;
   onDataManagement: () => void;
 }
 
@@ -29,6 +30,7 @@ export function Header({
   searchQuery,
   onSearchChange,
   onAddSong,
+  onAddKCCollection,
   onDataManagement,
 }: HeaderProps) {
   const { theme, setTheme } = useTheme();
@@ -97,6 +99,10 @@ export function Header({
                 <DropdownMenuItem onClick={onAddSong} className="text-base py-2">
                   <Plus className="h-5 w-5 mr-2" />
                   Add Single Song
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onAddKCCollection} className="text-base py-2">
+                  <Lock className="h-5 w-5 mr-2" />
+                  Add KC Collection
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onDataManagement} className="text-base py-2">

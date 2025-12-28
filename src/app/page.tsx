@@ -21,6 +21,7 @@ export default function Home() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [dataManagementOpen, setDataManagementOpen] = useState(false);
   const [christmasMode, setChristmasMode] = useState(false);
+  const [addDialogMode, setAddDialogMode] = useState<"single" | "kc-collection">("single");
 
   // Load songs from IndexedDB
   const loadSongs = async () => {
@@ -84,6 +85,8 @@ export default function Home() {
   const handleSongAdded = () => {
     loadSongs();
     setAddDialogOpen(false);
+    // Reset mode to single for next open
+    setTimeout(() => setAddDialogMode("single"), 300);
   };
 
 
@@ -107,7 +110,14 @@ export default function Home() {
         <Header
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onAddSong={() => setAddDialogOpen(true)}
+          onAddSong={() => {
+            setAddDialogMode("single");
+            setAddDialogOpen(true);
+          }}
+          onAddKCCollection={() => {
+            setAddDialogMode("kc-collection");
+            setAddDialogOpen(true);
+          }}
           onDataManagement={() => setDataManagementOpen(true)}
         />
 
@@ -120,7 +130,10 @@ export default function Home() {
             </div>
           ) : songs.length === 0 ? (
             <EmptyState
-              onAddSong={() => setAddDialogOpen(true)}
+              onAddSong={() => {
+                setAddDialogMode("single");
+                setAddDialogOpen(true);
+              }}
             />
           ) : (
             <SongList
@@ -141,6 +154,7 @@ export default function Home() {
           open={addDialogOpen}
           onOpenChange={setAddDialogOpen}
           onSongAdded={handleSongAdded}
+          initialMode={addDialogMode}
         />
 
 
