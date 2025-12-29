@@ -23,6 +23,8 @@ import {
   Pause,
   Minus,
   Plus,
+  PanelTopClose,
+  PanelBottomClose,
   Maximize2,
   Minimize2,
   Heart,
@@ -755,9 +757,9 @@ export default function SongPage({
                 title={isHeaderHidden ? "Exit immersive mode" : "Enter immersive mode"}
               >
                 {isHeaderHidden ? (
-                  <Minimize2 className="h-4 w-4" />
+                  <PanelBottomClose className="h-4 w-4" />
                 ) : (
-                  <Maximize2 className="h-4 w-4" />
+                  <PanelTopClose className="h-4 w-4" />
                 )}
               </Button>
 
