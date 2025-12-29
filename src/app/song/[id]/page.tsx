@@ -66,12 +66,20 @@ function getInitialFontSize(): number {
     const saved = localStorage.getItem("songbook-lyrics-font-size");
     if (saved) {
       const parsed = parseInt(saved, 10);
-      if (!isNaN(parsed) && parsed >= 14 && parsed <= 72) {
+      if (!isNaN(parsed) && parsed >= 8 && parsed <= 120) {
         return parsed;
       }
     }
   }
   return 22; // Default font size
+}
+
+// Get initial lyrics fullscreen mode from localStorage
+function getInitialLyricsFullscreen(): boolean {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("songbook-lyrics-fullscreen") === "true";
+  }
+  return false;
 }
 
 export default function SongPage({
@@ -140,13 +148,13 @@ export default function SongPage({
   const [lyricsFontSize, setLyricsFontSizeState] = useState(22);
   const DEFAULT_FONT_SIZE = 22;
   
-  // Font size zoom indicator state (for immersive mode)
-  const [showFontSizeIndicator, setShowFontSizeIndicator] = useState(false);
-  const hideFontSizeIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
   // Font size input editing state
   const [isEditingFontSize, setIsEditingFontSize] = useState(false);
   const [fontSizeInputValue, setFontSizeInputValue] = useState("22");
+  
+  // Speed input editing state
+  const [isEditingSpeed, setIsEditingSpeed] = useState(false);
+  const [speedInputValue, setSpeedInputValue] = useState("3");
   
   // Touch state for pinch-to-zoom on lyrics
   const lyricsTouchStateRef = useRef<{
@@ -154,10 +162,44 @@ export default function SongPage({
     initialFontSize: number;
   } | null>(null);
 
+  // Lyrics fullscreen (expanded) state
+  const [isLyricsFullscreen, setIsLyricsFullscreenState] = useState(false);
+
+  // Wrapper to persist lyrics fullscreen to localStorage
+  const setIsLyricsFullscreen = useCallback((value: boolean) => {
+    setIsLyricsFullscreenState(value);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("songbook-lyrics-fullscreen", String(value));
+    }
+  }, []);
+
+  // Load saved lyrics fullscreen mode on mount
+  useEffect(() => {
+    const saved = getInitialLyricsFullscreen();
+    setIsLyricsFullscreenState(saved);
+  }, []);
+
   // PDF zoom state
   const [pdfZoom, setPdfZoom] = useState(1);
   const [isEditingZoom, setIsEditingZoom] = useState(false);
   const [zoomInputValue, setZoomInputValue] = useState("100");
+
+  // Toggle lyrics fullscreen
+  const toggleLyricsFullscreen = useCallback(() => {
+    setIsLyricsFullscreen(!isLyricsFullscreen);
+  }, [isLyricsFullscreen, setIsLyricsFullscreen]);
+
+  // Exit fullscreen on ESC key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isLyricsFullscreen) {
+        setIsLyricsFullscreen(false);
+      }
+    };
+    
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isLyricsFullscreen, setIsLyricsFullscreen]);
 
   const handleZoomChange = useCallback((newZoom: number) => {
     const clampedZoom = Math.max(0.5, Math.min(5, newZoom));
@@ -176,35 +218,20 @@ export default function SongPage({
     setIsEditingZoom(false);
   }, [zoomInputValue, pdfZoom, handleZoomChange]);
 
-  // Flash font size indicator (for immersive mode)
-  const flashFontSizeIndicator = useCallback(() => {
-    if (!isHeaderHiddenState) return; // Only flash in immersive mode
-    setShowFontSizeIndicator(true);
-    if (hideFontSizeIndicatorTimeoutRef.current) {
-      clearTimeout(hideFontSizeIndicatorTimeoutRef.current);
-    }
-    hideFontSizeIndicatorTimeoutRef.current = setTimeout(() => {
-      setShowFontSizeIndicator(false);
-    }, 2000);
-  }, [isHeaderHiddenState]);
-
   // Wrapper to persist font size to localStorage
-  const setLyricsFontSize = useCallback((size: number, flash = false) => {
-    const clampedSize = Math.max(14, Math.min(72, size));
+  const setLyricsFontSize = useCallback((size: number) => {
+    const clampedSize = Math.max(8, Math.min(120, size));
     setLyricsFontSizeState(clampedSize);
     setFontSizeInputValue(String(clampedSize));
     if (typeof window !== "undefined") {
       localStorage.setItem("songbook-lyrics-font-size", String(clampedSize));
     }
-    if (flash) {
-      flashFontSizeIndicator();
-    }
-  }, [flashFontSizeIndicator]);
+  }, []);
   
   // Handle font size input submit
   const handleFontSizeInputSubmit = useCallback(() => {
     const parsed = parseInt(fontSizeInputValue, 10);
-    if (!isNaN(parsed) && parsed >= 14 && parsed <= 72) {
+    if (!isNaN(parsed) && parsed >= 8 && parsed <= 120) {
       setLyricsFontSize(parsed);
     } else {
       // Reset to current font size if invalid
@@ -259,7 +286,7 @@ export default function SongPage({
       e.preventDefault();
       const zoomFactor = 1 - e.deltaY * 0.01;
       const newSize = Math.round(lyricsFontSizeRef.current * zoomFactor);
-      setLyricsFontSizeRef.current(newSize, true);
+      setLyricsFontSizeRef.current(newSize);
     }
   }
   
@@ -286,7 +313,7 @@ export default function SongPage({
       const currentDistance = getTouchDistance(e.touches);
       const scaleChange = currentDistance / lyricsTouchStateRef.current.initialDistance;
       const newSize = Math.round(lyricsTouchStateRef.current.initialFontSize * scaleChange);
-      setLyricsFontSizeRef.current(newSize, true);
+      setLyricsFontSizeRef.current(newSize);
     }
   }
   
@@ -366,8 +393,20 @@ export default function SongPage({
   }, [viewMode, isEditing]);
 
   const adjustSpeed = useCallback((delta: number) => {
-    setScrollSpeed((prev) => Math.max(5, Math.min(75, prev + delta)));
+    setScrollSpeed((prev) => Math.max(5, Math.min(150, prev + delta)));
   }, []);
+
+  // Handle speed input submit
+  const handleSpeedInputSubmit = useCallback(() => {
+    const parsed = parseInt(speedInputValue, 10);
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= 30) {
+      setScrollSpeed(parsed * 5);
+    } else {
+      // Reset to current speed if invalid
+      setSpeedInputValue(String(scrollSpeed / 5));
+    }
+    setIsEditingSpeed(false);
+  }, [speedInputValue, scrollSpeed]);
 
   useEffect(() => {
     const loadSong = async () => {
@@ -639,66 +678,6 @@ export default function SongPage({
                 </div>
               )}
 
-              {/* Font size controls - only show in lyrics view when not editing */}
-              {viewMode === "lyrics" && hasLyrics && !isEditing && (
-                <div className="flex items-center border rounded-md">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-r-none border-r"
-                    onClick={() => setLyricsFontSize(lyricsFontSize - 2)}
-                    disabled={lyricsFontSize <= 14}
-                    title="Decrease font size"
-                  >
-                    <Minus className="h-3.5 w-3.5" />
-                  </Button>
-                  
-                  {isEditingFontSize ? (
-                    <Input
-                      type="number"
-                      value={fontSizeInputValue}
-                      onChange={(e) => setFontSizeInputValue(e.target.value)}
-                      onBlur={handleFontSizeInputSubmit}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleFontSizeInputSubmit();
-                        } else if (e.key === "Escape") {
-                          setFontSizeInputValue(String(lyricsFontSize));
-                          setIsEditingFontSize(false);
-                        }
-                      }}
-                      className="w-14 h-8 text-center text-sm px-1 border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      min={14}
-                      max={72}
-                      autoFocus
-                    />
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setFontSizeInputValue(String(lyricsFontSize));
-                        setIsEditingFontSize(true);
-                      }}
-                      className="flex items-center gap-1.5 px-2 h-8 text-sm font-medium hover:bg-accent rounded-none transition-colors"
-                      title="Click to enter custom font size"
-                    >
-                      <ALargeSmall className="h-4 w-4 text-muted-foreground" />
-                      <span>{lyricsFontSize}</span>
-                    </button>
-                  )}
-                  
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-l-none border-l"
-                    onClick={() => setLyricsFontSize(lyricsFontSize + 2)}
-                    disabled={lyricsFontSize >= 72}
-                    title="Increase font size"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              )}
-
               {/* Edit button - only show in lyrics view */}
               {viewMode === "lyrics" && (
                 isEditing ? (
@@ -799,12 +778,19 @@ export default function SongPage({
 
         {/* Content */}
         <main
-          className={`transition-all duration-300 ${viewMode === "lyrics" ? "container mx-auto px-4 py-3" : "px-0 py-0"
-            } ${isHeaderHidden && !isHeaderHovered ? "-mt-16" : ""}`}
+          className={cn(
+            "transition-all duration-300",
+            viewMode === "lyrics" 
+              ? isLyricsFullscreen 
+                ? "px-0 py-0" 
+                : "container mx-auto px-4 py-3" 
+              : "px-0 py-0",
+            isHeaderHidden && !isHeaderHovered && "-mt-16"
+          )}
         >
           <div className="page-transition">
             {viewMode === "lyrics" ? (
-              <div className="mx-auto" style={{ width: 'fit-content', maxWidth: '100%' }}>
+              <div className="mx-auto" style={isLyricsFullscreen ? { width: '100%' } : { width: 'fit-content', maxWidth: '100%' }}>
                 {/* Lyrics content */}
                 {isEditing ? (
                   <Textarea
@@ -815,44 +801,35 @@ export default function SongPage({
                   />
                 ) : hasLyrics ? (
                   <div 
-                    className="relative flex flex-col bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden transition-all duration-300"
-                    style={{ height: isHeaderHidden && !isHeaderHovered ? "calc(100vh - 1.5rem)" : "calc(100vh - 5.5rem)" }}
-                  >
-                    {/* Font size indicator - only show in immersive mode */}
-                    {isHeaderHidden && lyricsFontSize !== DEFAULT_FONT_SIZE && (
-                      <div 
-                        className={`absolute top-4 right-4 z-20 transition-opacity duration-300 ${
-                          showFontSizeIndicator ? "opacity-100" : "opacity-0 pointer-events-none"
-                        }`}
-                      >
-                        <div className="bg-black/70 backdrop-blur-sm rounded-xl overflow-hidden text-white text-sm font-medium">
-                          <div className="flex items-center gap-2 px-3 py-2">
-                            <ALargeSmall className="h-4 w-4" />
-                            <span>{lyricsFontSize}px</span>
-                          </div>
-                          <button
-                            onClick={() => {
-                              setLyricsFontSize(DEFAULT_FONT_SIZE);
-                              setShowFontSizeIndicator(false);
-                            }}
-                            className="w-full px-3 py-2 text-white/70 hover:text-white hover:bg-white/10 transition-colors border-t border-white/20 text-center"
-                          >
-                            Reset
-                          </button>
-                        </div>
-                      </div>
+                    className={cn(
+                      "relative flex flex-col bg-card overflow-hidden transition-all duration-300",
+                      isLyricsFullscreen 
+                        ? "rounded-none border-0" 
+                        : "rounded-xl border border-border/50 shadow-sm"
                     )}
-                    
+                    style={{ 
+                      height: isLyricsFullscreen
+                        ? isHeaderHidden && !isHeaderHovered
+                          ? "100vh"
+                          : "calc(100vh - 4rem)"
+                        : isHeaderHidden && !isHeaderHovered 
+                          ? "calc(100vh - 1.5rem)" 
+                          : "calc(100vh - 5.5rem)" 
+                    }}
+                  >
                     {/* Scrollable lyrics container */}
                     <div
                       ref={lyricsRefCallback}
-                      className="flex-1 p-8 sm:p-12 overflow-y-auto"
+                      className={cn(
+                        "flex-1 p-8 sm:p-12 overflow-y-auto",
+                        isLyricsFullscreen && "pl-12 sm:pl-20"
+                      )}
                       style={{ touchAction: "pan-y" }}
                     >
-                      <div className="lyrics-text font-sans max-w-none whitespace-nowrap" style={{ fontSize: `${lyricsFontSize}px` }}>
+                      <div className="lyrics-text font-sans max-w-none" style={{ fontSize: `${lyricsFontSize}px` }}>
                         <ReactMarkdown
                           components={{
-                            p: ({ children }) => <p className="whitespace-pre mb-0 last:mb-0" style={{ lineHeight: 1.4 }}>{children}</p>,
+                            p: ({ children }) => <p className="whitespace-pre-wrap mb-0 last:mb-0" style={{ lineHeight: 1.4 }}>{children}</p>,
                             em: ({ children }) => <em className="text-muted-foreground not-italic opacity-70">{children}</em>,
                             strong: ({ children }) => <strong className="font-bold">{children}</strong>,
                           }}
@@ -863,50 +840,158 @@ export default function SongPage({
                       </div>
                     </div>
 
-                    {/* Auto-scroll controls - bottom bar */}
+                    {/* Lyrics controls - bottom bar */}
                     <div className="flex items-center justify-center gap-4 px-4 py-2 border-t border-border/50 bg-card/90 backdrop-blur-sm">
+                      {/* Fullscreen toggle */}
                       <Button
-                        variant={isScrolling ? "default" : "outline"}
-                        size="sm"
-                        className="gap-2"
-                        onClick={() => setIsScrolling(!isScrolling)}
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 bg-card"
+                        onClick={toggleLyricsFullscreen}
+                        title={isLyricsFullscreen ? "Exit full width" : "Enter full width"}
                       >
-                        {isScrolling ? (
-                          <>
-                            <Pause className="h-4 w-4" />
-                            <span>Pause</span>
-                          </>
+                        {isLyricsFullscreen ? (
+                          <Minimize2 className="h-4 w-4" />
                         ) : (
-                          <>
-                            <Play className="h-4 w-4" />
-                            <span>Auto-scroll</span>
-                          </>
+                          <Maximize2 className="h-4 w-4" />
                         )}
                       </Button>
 
-                      <div className="flex items-center gap-0">
+                      {/* Font size controls */}
+                      <div className="flex items-center border rounded-md bg-card">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-8 w-8 rounded-r-none border-r"
+                          onClick={() => setLyricsFontSize(lyricsFontSize - 2)}
+                          disabled={lyricsFontSize <= 8}
+                          title="Decrease font size"
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                        </Button>
+                        
+                        {isEditingFontSize ? (
+                          <Input
+                            type="number"
+                            value={fontSizeInputValue}
+                            onChange={(e) => setFontSizeInputValue(e.target.value)}
+                            onBlur={handleFontSizeInputSubmit}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                handleFontSizeInputSubmit();
+                              } else if (e.key === "Escape") {
+                                setFontSizeInputValue(String(lyricsFontSize));
+                                setIsEditingFontSize(false);
+                              }
+                            }}
+                            className="w-14 h-8 text-center text-sm px-1 border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            min={8}
+                            max={120}
+                            autoFocus
+                          />
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setFontSizeInputValue(String(lyricsFontSize));
+                              setIsEditingFontSize(true);
+                            }}
+                            className="flex items-center gap-1.5 px-2 h-8 text-sm font-medium hover:bg-accent rounded-none transition-colors"
+                            title="Click to enter custom font size"
+                          >
+                            <ALargeSmall className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-xs">{lyricsFontSize}</span>
+                          </button>
+                        )}
+                        
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-l-none border-l"
+                          onClick={() => setLyricsFontSize(lyricsFontSize + 2)}
+                          disabled={lyricsFontSize >= 120}
+                          title="Increase font size"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+
+                      {/* Divider */}
+                      <div className="h-6 w-px bg-border" />
+
+                      {/* Auto-scroll controls */}
+                      <div className="flex items-center border rounded-md bg-card">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={cn(
+                            "gap-2 rounded-r-none border-r",
+                            isScrolling && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                          )}
+                          onClick={() => setIsScrolling(!isScrolling)}
+                        >
+                          {isScrolling ? (
+                            <>
+                              <Pause className="h-4 w-4" />
+                              <span>Pause</span>
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-4 w-4" />
+                              <span>Auto-scroll</span>
+                            </>
+                          )}
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-none"
                           onClick={() => adjustSpeed(-5)}
                           disabled={scrollSpeed <= 5}
                           title="Slower"
                         >
                           <Minus className="h-3.5 w-3.5" />
                         </Button>
-                        <div className="flex items-center gap-1 px-1">
-                          <span className="text-sm text-muted-foreground w-2 text-center font-mono">
-                            {scrollSpeed / 5}
-                          </span>
-                          <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
-                        </div>
+                        {isEditingSpeed ? (
+                          <Input
+                            type="number"
+                            value={speedInputValue}
+                            onChange={(e) => setSpeedInputValue(e.target.value)}
+                            onBlur={handleSpeedInputSubmit}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                handleSpeedInputSubmit();
+                              } else if (e.key === "Escape") {
+                                setSpeedInputValue(String(scrollSpeed / 5));
+                                setIsEditingSpeed(false);
+                              }
+                            }}
+                            className="w-10 h-8 text-center text-xs px-1 border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            min={1}
+                            max={30}
+                            autoFocus
+                          />
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setSpeedInputValue(String(scrollSpeed / 5));
+                              setIsEditingSpeed(true);
+                            }}
+                            className="flex items-center gap-1 px-1 h-8 hover:bg-accent rounded-none transition-colors"
+                            title="Click to enter custom speed"
+                          >
+                            <span className="text-xs text-muted-foreground w-2 text-center font-mono">
+                              {scrollSpeed / 5}
+                            </span>
+                            <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
+                          </button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-8 w-8 rounded-l-none"
                           onClick={() => adjustSpeed(5)}
-                          disabled={scrollSpeed >= 75}
+                          disabled={scrollSpeed >= 150}
                           title="Faster"
                         >
                           <Plus className="h-3.5 w-3.5" />
