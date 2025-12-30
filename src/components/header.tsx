@@ -1,6 +1,7 @@
 "use client";
 
-import { Search, Plus, Upload, Moon, Sun, Mic2, Settings, Download, Lock } from "lucide-react";
+import Image from "next/image";
+import { Search, Plus, Upload, Moon, Sun, Settings, Download, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,9 +42,13 @@ export function Header({
         <div className="flex h-16 items-center justify-between gap-4">
           {/* Logo */}
           <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
-              <Mic2 className="h-6 w-6" />
-            </div>
+            <Image
+              src="/icons/icon.svg"
+              alt="Songbook"
+              width={40}
+              height={40}
+              className="rounded-xl shadow-lg shadow-[#1a2744]/25"
+            />
             <div className="hidden sm:block">
               <h1 className="font-display text-xl font-semibold tracking-tight">
                 Songbook
