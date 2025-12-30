@@ -51,10 +51,18 @@ export function Header({
             />
             <div className="hidden sm:block">
               <h1 className="font-display text-xl font-semibold tracking-tight">
-                Songbook
+                The Karaoke Collective Songbook
               </h1>
-              <p className="text-sm text-muted-foreground -mt-0.5">
-                Karaoke Collective
+              <p className="text-xs text-muted-foreground/70 -mt-0.5">
+                Made with ♥ by{" "}
+                <a
+                  href="https://ulriklyngs.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-foreground transition-colors underline decoration-muted-foreground/30 underline-offset-2 hover:decoration-muted-foreground/60"
+                >
+                  Ulrik Lyngs
+                </a>
               </p>
             </div>
           </div>
