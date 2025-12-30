@@ -133,7 +133,7 @@ export function SongList({
         <h3 className="font-display text-lg font-semibold mb-1">No songs found</h3>
         <p className="text-muted-foreground">
           No songs match &quot;{searchQuery}&quot;
-          {christmasMode && " in Christmas mode"}
+          {christmasMode && " (Christmas)"}
         </p>
       </div>
     );
@@ -155,7 +155,7 @@ export function SongList({
               className="data-[state=unchecked]:bg-muted-foreground/30"
             />
             <Label htmlFor="christmas-mode" className="text-sm cursor-pointer">
-              🎄 <span className="hidden sm:inline">Christmas </span>Mode
+              🎄 <span className="hidden sm:inline">Christmas </span>songs
             </Label>
           </div>
         </div>
@@ -187,7 +187,7 @@ export function SongList({
             className="data-[state=unchecked]:bg-muted-foreground/30"
           />
           <Label htmlFor="christmas-mode" className="text-sm sm:text-base cursor-pointer">
-            🎄 <span className="hidden sm:inline">Christmas </span>Mode
+            🎄 <span className="hidden sm:inline">Christmas </span>songs
           </Label>
         </div>
       </div>
