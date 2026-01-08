@@ -149,15 +149,15 @@ export default function SongPage({
   // Font size state
   const [lyricsFontSize, setLyricsFontSizeState] = useState(22);
   const DEFAULT_FONT_SIZE = 22;
-  
+
   // Font size input editing state
   const [isEditingFontSize, setIsEditingFontSize] = useState(false);
   const [fontSizeInputValue, setFontSizeInputValue] = useState("22");
-  
+
   // Speed input editing state
   const [isEditingSpeed, setIsEditingSpeed] = useState(false);
   const [speedInputValue, setSpeedInputValue] = useState("3");
-  
+
   // Touch state for pinch-to-zoom on lyrics
   const lyricsTouchStateRef = useRef<{
     initialDistance: number;
@@ -198,7 +198,7 @@ export default function SongPage({
         setIsLyricsFullscreen(false);
       }
     };
-    
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isLyricsFullscreen, setIsLyricsFullscreen]);
@@ -229,7 +229,7 @@ export default function SongPage({
       localStorage.setItem("songbook-lyrics-font-size", String(clampedSize));
     }
   }, []);
-  
+
   // Handle font size input submit
   const handleFontSizeInputSubmit = useCallback(() => {
     const parsed = parseInt(fontSizeInputValue, 10);
@@ -241,19 +241,19 @@ export default function SongPage({
     }
     setIsEditingFontSize(false);
   }, [fontSizeInputValue, lyricsFontSize, setLyricsFontSize]);
-  
+
   // Store setLyricsFontSize in a ref so event handlers always have latest version
   const setLyricsFontSizeRef = useRef(setLyricsFontSize);
   useEffect(() => {
     setLyricsFontSizeRef.current = setLyricsFontSize;
   }, [setLyricsFontSize]);
-  
+
   // Track current font size in a ref so event handlers always have latest value
   const lyricsFontSizeRef = useRef(lyricsFontSize);
   useEffect(() => {
     lyricsFontSizeRef.current = lyricsFontSize;
   }, [lyricsFontSize]);
-  
+
   // Callback ref for lyrics container - attaches event listeners when element mounts
   const lyricsContainerRef = useRef<HTMLDivElement | null>(null);
   const lyricsRefCallback = useCallback((node: HTMLDivElement | null) => {
@@ -266,12 +266,12 @@ export default function SongPage({
       oldNode.removeEventListener("touchend", handleTouchEnd);
       oldNode.removeEventListener("touchcancel", handleTouchEnd);
     }
-    
+
     // Store the new node
     lyricsContainerRef.current = node;
     // Also update lyricsRef for scrolling functionality
     lyricsRef.current = node;
-    
+
     // Attach new listeners if we have a node
     if (node) {
       node.addEventListener("wheel", handleWheel, { passive: false });
@@ -281,7 +281,7 @@ export default function SongPage({
       node.addEventListener("touchcancel", handleTouchEnd);
     }
   }, []);
-  
+
   // Stable event handler functions that use refs to access current state
   function handleWheel(e: WheelEvent) {
     if (e.ctrlKey) {
@@ -291,14 +291,14 @@ export default function SongPage({
       setLyricsFontSizeRef.current(newSize);
     }
   }
-  
+
   function getTouchDistance(touches: TouchList) {
     if (touches.length < 2) return 0;
     const dx = touches[0].clientX - touches[1].clientX;
     const dy = touches[0].clientY - touches[1].clientY;
     return Math.sqrt(dx * dx + dy * dy);
   }
-  
+
   function handleTouchStart(e: TouchEvent) {
     if (e.touches.length === 2) {
       e.preventDefault();
@@ -308,7 +308,7 @@ export default function SongPage({
       };
     }
   }
-  
+
   function handleTouchMove(e: TouchEvent) {
     if (e.touches.length === 2 && lyricsTouchStateRef.current) {
       e.preventDefault();
@@ -318,7 +318,7 @@ export default function SongPage({
       setLyricsFontSizeRef.current(newSize);
     }
   }
-  
+
   function handleTouchEnd() {
     lyricsTouchStateRef.current = null;
   }
@@ -633,7 +633,7 @@ export default function SongPage({
                   >
                     <Minus className="h-3.5 w-3.5" />
                   </Button>
-                  
+
                   {isEditingZoom ? (
                     <Input
                       type="number"
@@ -666,7 +666,7 @@ export default function SongPage({
                       <span>{Math.round(pdfZoom * 100)}%</span>
                     </button>
                   )}
-                  
+
                   <Button
                     variant="ghost"
                     size="icon"
@@ -782,10 +782,10 @@ export default function SongPage({
         <main
           className={cn(
             "transition-all duration-300",
-            viewMode === "lyrics" 
-              ? isLyricsFullscreen 
-                ? "px-0 py-0" 
-                : "container mx-auto px-4 py-3" 
+            viewMode === "lyrics"
+              ? isLyricsFullscreen
+                ? "px-0 py-0"
+                : "container mx-auto px-4 py-3"
               : "px-0 py-0",
             isHeaderHidden && !isHeaderHovered && "-mt-16"
           )}
@@ -802,21 +802,21 @@ export default function SongPage({
                     placeholder="Enter lyrics here..."
                   />
                 ) : hasLyrics ? (
-                  <div 
+                  <div
                     className={cn(
                       "relative flex flex-col bg-card overflow-hidden transition-all duration-300",
-                      isLyricsFullscreen 
-                        ? "rounded-none border-0" 
+                      isLyricsFullscreen
+                        ? "rounded-none border-0"
                         : "rounded-xl border border-border/50 shadow-sm"
                     )}
-                    style={{ 
+                    style={{
                       height: isLyricsFullscreen
                         ? isHeaderHidden && !isHeaderHovered
                           ? "100vh"
                           : "calc(100vh - 4rem)"
-                        : isHeaderHidden && !isHeaderHovered 
-                          ? "calc(100vh - 1.5rem)" 
-                          : "calc(100vh - 5.5rem)" 
+                        : isHeaderHidden && !isHeaderHovered
+                          ? "calc(100vh - 1.5rem)"
+                          : "calc(100vh - 5.5rem)"
                     }}
                   >
                     {/* Scrollable lyrics container */}
@@ -843,7 +843,7 @@ export default function SongPage({
                     </div>
 
                     {/* Lyrics controls - bottom bar */}
-                    <div className="flex items-center justify-center gap-4 px-4 py-2 border-t border-border/50 bg-card/90 backdrop-blur-sm">
+                    <div className="flex items-center justify-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 border-t border-border/50 bg-card/90 backdrop-blur-sm w-full overflow-x-auto">
                       {/* Fullscreen toggle */}
                       <Button
                         variant="outline"
@@ -871,7 +871,7 @@ export default function SongPage({
                         >
                           <Minus className="h-3.5 w-3.5" />
                         </Button>
-                        
+
                         {isEditingFontSize ? (
                           <Input
                             type="number"
@@ -904,7 +904,7 @@ export default function SongPage({
                             <span className="text-xs">{lyricsFontSize}</span>
                           </button>
                         )}
-                        
+
                         <Button
                           variant="ghost"
                           size="icon"
@@ -934,12 +934,12 @@ export default function SongPage({
                           {isScrolling ? (
                             <>
                               <Pause className="h-4 w-4" />
-                              <span>Pause</span>
+                              <span className="hidden sm:inline">Pause</span>
                             </>
                           ) : (
                             <>
                               <Play className="h-4 w-4" />
-                              <span>Auto-scroll</span>
+                              <span className="hidden sm:inline">Auto-scroll</span>
                             </>
                           )}
                         </Button>
@@ -1082,8 +1082,8 @@ function MusicViewer({
 
   // Use seamless PDF viewer for better multi-page experience
   return (
-    <SeamlessPdfViewer 
-      data={data} 
+    <SeamlessPdfViewer
+      data={data}
       isImmersive={isImmersive}
       zoom={zoom}
       onZoomChange={onZoomChange}
