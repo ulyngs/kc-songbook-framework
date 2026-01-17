@@ -25,14 +25,17 @@ A beautiful Progressive Web App for managing your karaoke songbook with lyrics a
 # Install dependencies
 npm install
 
-# Start development server
+# Start development server (Web)
 npm run dev
 
-# Build for production
+# Start development server (Desktop App)
+npm run tauri:dev
+
+# Build for production (Web)
 npm run build
 
-# Start production server
-npm start
+# Build for production (Desktop App)
+npm run tauri:build
 ```
 
 ### Environment Variables
@@ -120,11 +123,11 @@ All songs are stored locally in your browser's IndexedDB. Data persists across s
 
 ## Tech Stack
 
-- **Next.js 15** - React framework
+- **Next.js 16** - React framework
 - **Tailwind CSS 4** - Styling
 - **shadcn/ui** - UI components
 - **IndexedDB (idb)** - Local storage
-- **Serwist** - PWA support
+- **@ducanh2912/next-pwa** - PWA support
 - **Netlify Blobs** - Secure collection storage
 - **pdf.js** - PDF rendering
 
@@ -133,25 +136,30 @@ All songs are stored locally in your browser's IndexedDB. Data persists across s
 ```
 src/
 ├── app/
-│   ├── page.tsx              # Home page with songlist
-│   ├── song/[id]/page.tsx    # Song detail view
-│   ├── layout.tsx            # Root layout with theme
-│   ├── globals.css           # Global styles & theme
+│   ├── page.tsx                  # Home page with songlist
+│   ├── song/[[...slug]]/         # Dynamic song detail view
+│   │   ├── page.tsx
+│   │   └── song-page-client.tsx
+│   ├── layout.tsx                # Root layout with theme
+│   ├── globals.css               # Global styles & theme
 │   └── api/
-│       └── kc-collection/    # KC Collection API endpoint
+│       └── kc-collection/        # KC Collection API endpoint
 ├── components/
-│   ├── ui/                   # shadcn/ui components
-│   ├── header.tsx            # App header with search
-│   ├── song-list.tsx         # Song listing component
-│   ├── add-song-dialog.tsx   # Add song modal
+│   ├── ui/                       # shadcn/ui components
+│   ├── header.tsx                # App header with search
+│   ├── song-list.tsx             # Song listing component
+│   ├── songlist-sheet.tsx        # Sheet view for song list
+│   ├── add-song-dialog.tsx       # Add song modal
+│   ├── bulk-upload-dialog.tsx    # Bulk upload modal
 │   ├── data-management-dialog.tsx
 │   └── seamless-pdf-viewer.tsx
 ├── data/
-│   └── kc-collection.json    # Local KC collection (gitignored)
-└── lib/
-    ├── db.ts                 # IndexedDB operations
-    ├── kc-collection.ts      # KC Collection import logic
-    └── utils.ts              # Utility functions
+│   └── kc-collection.json        # Local KC collection (gitignored)
+├── lib/
+│   ├── db.ts                     # IndexedDB operations
+│   ├── kc-collection.ts          # KC Collection import logic
+│   └── utils.ts                  # Utility functions
+└── src-tauri/                    # Tauri backend (Rust)
 ```
 
 ## KC Collection Management
