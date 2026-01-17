@@ -93,12 +93,13 @@ function getInitialLyricsFullscreen(): boolean {
   return false;
 }
 
-export default function SongPage({
+export default function SongPageClient({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug?: string[] }>;
 }) {
-  const { id } = use(params);
+  const { slug } = use(params);
+  const id = slug?.[0]; // Extract first segment as song ID
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [song, setSong] = useState<Song | null>(null);
@@ -110,6 +111,13 @@ export default function SongPage({
   const [isEditing, setIsEditing] = useState(false);
   const [editedLyrics, setEditedLyrics] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  // Redirect to home if no song ID provided
+  useEffect(() => {
+    if (!id) {
+      router.replace("/");
+    }
+  }, [id, router]);
 
   // Wrapper to persist view mode to localStorage
   const setViewMode = useCallback((mode: ViewMode) => {
@@ -448,6 +456,11 @@ export default function SongPage({
 
   useEffect(() => {
     const loadSong = async () => {
+      // Guard: don't load if no ID (will redirect to home)
+      if (!id) {
+        setIsLoading(false);
+        return;
+      }
       try {
         const songData = await getSong(id);
         if (songData) {
