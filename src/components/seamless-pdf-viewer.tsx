@@ -9,6 +9,7 @@ interface SeamlessPdfViewerProps {
   isImmersive?: boolean;
   zoom?: number;
   onZoomChange?: (zoom: number) => void;
+  scrollRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 interface TouchState {
@@ -22,13 +23,15 @@ interface PageInfo {
   height: number;
 }
 
-export function SeamlessPdfViewer({ 
-  data, 
+export function SeamlessPdfViewer({
+  data,
   isImmersive = false,
   zoom: controlledZoom,
   onZoomChange,
+  scrollRef,
 }: SeamlessPdfViewerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const internalContainerRef = useRef<HTMLDivElement>(null);
+  const containerRef = scrollRef || internalContainerRef;
   const contentRef = useRef<HTMLDivElement>(null);
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   const pdfDocRef = useRef<PDFDocumentProxy | null>(null);
@@ -36,7 +39,7 @@ export function SeamlessPdfViewer({
   const [pageInfos, setPageInfos] = useState<PageInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Zoom state - can be controlled or uncontrolled
   const [internalZoom, setInternalZoom] = useState(1);
   const zoom = controlledZoom ?? internalZoom;
@@ -53,7 +56,7 @@ export function SeamlessPdfViewer({
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isGesturing, setIsGesturing] = useState(false);
   const touchStateRef = useRef<TouchState | null>(null);
-  
+
   const renderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isRenderingRef = useRef(false);
   const [isSwapping, setIsSwapping] = useState(false);
@@ -116,7 +119,7 @@ export function SeamlessPdfViewer({
 
     // Cancel any ongoing renders
     cancelRenderTasks();
-    
+
     isRenderingRef.current = true;
 
     const baseScale = baseScaleRef.current;
@@ -126,16 +129,16 @@ export function SeamlessPdfViewer({
     try {
       // First, render all pages to offscreen canvases
       const offscreenCanvases: { canvas: HTMLCanvasElement; width: number; height: number }[] = [];
-      
+
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
         const page = await pdf.getPage(pageNum);
         const viewport = page.getViewport({ scale: actualRenderScale * dpr });
-        
+
         // Create offscreen canvas for this page
         const offscreen = document.createElement("canvas");
         offscreen.width = viewport.width;
         offscreen.height = viewport.height;
-        
+
         const offscreenCtx = offscreen.getContext("2d");
         if (!offscreenCtx) continue;
 
@@ -145,12 +148,12 @@ export function SeamlessPdfViewer({
           viewport: viewport,
           canvas: offscreen,
         });
-        
+
         renderTasksRef.current[pageNum - 1] = renderTask;
-        
+
         await renderTask.promise;
         renderTasksRef.current[pageNum - 1] = null;
-        
+
         offscreenCanvases.push({
           canvas: offscreen,
           width: viewport.width / dpr,
@@ -160,33 +163,33 @@ export function SeamlessPdfViewer({
 
       // Store canvas data for swap
       const canvasData = offscreenCanvases;
-      
+
       // First: update all React state at once (batched)
       // This ensures cssScale becomes 1 and translate resets BEFORE we resize canvases
       setIsSwapping(true);
       setRenderedZoom(targetZoom);
       setTranslate({ x: 0, y: 0 });
-      
+
       // Wait for React to commit the state changes, then swap canvases
       requestAnimationFrame(() => {
         // Now swap all canvases (React has already updated cssScale to 1)
         for (let i = 0; i < canvasData.length; i++) {
           const visibleCanvas = canvasRefs.current[i];
           const { canvas: offscreen, width, height } = canvasData[i];
-          
+
           if (!visibleCanvas) continue;
-          
+
           visibleCanvas.width = offscreen.width;
           visibleCanvas.height = offscreen.height;
           visibleCanvas.style.width = `${width}px`;
           visibleCanvas.style.height = `${height}px`;
-          
+
           const ctx = visibleCanvas.getContext("2d");
           if (ctx) {
             ctx.drawImage(offscreen, 0, 0);
           }
         }
-        
+
         // Re-enable transitions after another frame
         requestAnimationFrame(() => {
           setIsSwapping(false);
@@ -207,7 +210,7 @@ export function SeamlessPdfViewer({
     if (renderTimeoutRef.current) {
       clearTimeout(renderTimeoutRef.current);
     }
-    
+
     // Debounce re-renders to avoid flickering during rapid zoom changes
     renderTimeoutRef.current = setTimeout(() => {
       renderPages(targetZoom);
@@ -238,22 +241,22 @@ export function SeamlessPdfViewer({
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2 && touchStateRef.current) {
       e.preventDefault();
-      
+
       const currentDistance = getTouchDistance(e.touches);
       const currentCenter = getTouchCenter(e.touches);
-      
+
       // Calculate new zoom
       const scaleChange = currentDistance / touchStateRef.current.initialDistance;
       const newZoom = clampZoom(touchStateRef.current.initialScale * scaleChange);
       setZoom(newZoom);
       flashZoomControls();
-      
+
       // Calculate pan movement
       const panX = currentCenter.x - touchStateRef.current.lastCenter.x;
       const panY = currentCenter.y - touchStateRef.current.lastCenter.y;
-      
+
       touchStateRef.current.lastCenter = currentCenter;
-      
+
       // Update translation
       setTranslate(prev => ({
         x: prev.x + panX,
@@ -276,7 +279,7 @@ export function SeamlessPdfViewer({
   const lastTapRef = useRef<number>(0);
   const handleDoubleTap = useCallback((e: React.TouchEvent) => {
     if (e.touches.length !== 1) return;
-    
+
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
       e.preventDefault();
@@ -292,10 +295,10 @@ export function SeamlessPdfViewer({
   const handleWheel = useCallback((e: WheelEvent) => {
     if (e.ctrlKey) {
       e.preventDefault();
-      
+
       const zoomFactor = 1 - e.deltaY * 0.01;
       const newZoom = clampZoom(zoom * zoomFactor);
-      
+
       setZoom(newZoom);
       scheduleRerender(newZoom);
       flashZoomControls();
@@ -366,7 +369,7 @@ export function SeamlessPdfViewer({
     };
 
     loadPdf();
-    return () => { 
+    return () => {
       cancelled = true;
       cancelRenderTasks();
     };
@@ -392,7 +395,7 @@ export function SeamlessPdfViewer({
 
   if (error) {
     return (
-      <div 
+      <div
         className="flex items-center justify-center bg-muted/30"
         style={{ height: containerHeight }}
       >
@@ -405,7 +408,7 @@ export function SeamlessPdfViewer({
     <div
       ref={containerRef}
       className="relative overflow-auto bg-neutral-800 dark:bg-neutral-900"
-      style={{ 
+      style={{
         height: containerHeight,
         touchAction: "pan-x pan-y",
       }}
@@ -429,10 +432,9 @@ export function SeamlessPdfViewer({
 
       {/* Zoom controls - only show in immersive mode, auto-hide after 2 seconds */}
       {isImmersive && zoom !== 1 && (
-        <div 
-          className={`fixed top-20 right-4 z-20 transition-opacity duration-300 ${
-            showZoomControls ? "opacity-100" : "opacity-0 pointer-events-none"
-          }`}
+        <div
+          className={`fixed top-20 right-4 z-20 transition-opacity duration-300 ${showZoomControls ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
         >
           <div className="bg-black/70 backdrop-blur-sm rounded-xl overflow-hidden text-white text-sm font-medium">
             <div className="flex items-center gap-2 px-3 py-2">
@@ -477,7 +479,7 @@ export function SeamlessPdfViewer({
             }}
           />
         ))}
-        
+
         {/* Placeholder while loading */}
         {pageInfos.length === 0 && !error && (
           <div className="w-full max-w-[900px] aspect-[8.5/11] bg-white/10 rounded animate-pulse" />

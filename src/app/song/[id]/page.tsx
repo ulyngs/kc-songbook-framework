@@ -151,6 +151,7 @@ export default function SongPage({
   const [isScrolling, setIsScrolling] = useState(false);
   const [scrollSpeed, setScrollSpeed] = useState(15); // pixels per second (displayed as speed / 5)
   const lyricsRef = useRef<HTMLDivElement>(null);
+  const musicScrollRef = useRef<HTMLDivElement>(null);
   const scrollAnimationRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
   const accumulatedScrollRef = useRef<number>(0);
@@ -191,7 +192,7 @@ export default function SongPage({
   }, []);
 
   // PDF zoom state
-  const [pdfZoom, setPdfZoom] = useState(1);
+  const [pdfZoom, setPdfZoom] = useState(1.1);
   const [isEditingZoom, setIsEditingZoom] = useState(false);
   const [zoomInputValue, setZoomInputValue] = useState("100");
 
@@ -363,19 +364,22 @@ export default function SongPage({
       const deltaTime = (currentTime - lastTimeRef.current) / 1000; // Convert to seconds
       lastTimeRef.current = currentTime;
 
-      if (lyricsRef.current) {
+      // Use the appropriate scroll container based on view mode
+      const scrollContainer = viewMode === "music" ? musicScrollRef.current : lyricsRef.current;
+
+      if (scrollContainer) {
         // Accumulate fractional scroll amounts
         accumulatedScrollRef.current += scrollSpeed * deltaTime;
 
         // Only scroll when we have at least 1 pixel accumulated
         if (accumulatedScrollRef.current >= 1) {
           const scrollAmount = Math.floor(accumulatedScrollRef.current);
-          lyricsRef.current.scrollTop += scrollAmount;
+          scrollContainer.scrollTop += scrollAmount;
           accumulatedScrollRef.current -= scrollAmount;
         }
 
         // Stop at the bottom
-        const { scrollTop, scrollHeight, clientHeight } = lyricsRef.current;
+        const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
         if (scrollTop + clientHeight >= scrollHeight - 10) {
           setIsScrolling(false);
           return;
@@ -946,6 +950,7 @@ export default function SongPage({
                         isImmersive={true}
                         zoom={pdfZoom}
                         onZoomChange={handleZoomChange}
+                        scrollRef={musicScrollRef}
                       />
                     </div>
 
@@ -1192,6 +1197,7 @@ function MusicViewer({
   isImmersive = false,
   zoom,
   onZoomChange,
+  scrollRef,
 }: {
   type: "pdf" | "image" | "text";
   data: string;
@@ -1199,6 +1205,7 @@ function MusicViewer({
   isImmersive?: boolean;
   zoom?: number;
   onZoomChange?: (zoom: number) => void;
+  scrollRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   if (type === "text") {
     return (
@@ -1230,6 +1237,7 @@ function MusicViewer({
       isImmersive={isImmersive}
       zoom={zoom}
       onZoomChange={onZoomChange}
+      scrollRef={scrollRef}
     />
   );
 }
