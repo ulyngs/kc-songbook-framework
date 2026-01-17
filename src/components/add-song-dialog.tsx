@@ -308,6 +308,21 @@ export function AddSongDialog({
                   <Textarea
                     value={musicText}
                     onChange={(e) => setMusicText(e.target.value)}
+                    onKeyDown={(e) => {
+                      // Allow Tab key to insert a tab character instead of moving focus
+                      if (e.key === "Tab") {
+                        e.preventDefault();
+                        const target = e.target as HTMLTextAreaElement;
+                        const start = target.selectionStart;
+                        const end = target.selectionEnd;
+                        const newValue = musicText.substring(0, start) + "\t" + musicText.substring(end);
+                        setMusicText(newValue);
+                        // Move cursor after the tab
+                        setTimeout(() => {
+                          target.selectionStart = target.selectionEnd = start + 1;
+                        }, 0);
+                      }
+                    }}
                     placeholder="Type chord charts, tabs, or notation..."
                     className="min-h-[150px] font-mono text-sm"
                   />

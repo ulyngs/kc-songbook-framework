@@ -40,6 +40,7 @@ import {
   Gauge,
   MoreVertical,
   Home,
+  Pencil,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -107,6 +108,8 @@ export default function SongPageClient() {
   const [viewMode, setViewModeState] = useState<ViewMode>("lyrics");
   const [isEditing, setIsEditing] = useState(false);
   const [editedLyrics, setEditedLyrics] = useState("");
+  const [isEditingMusic, setIsEditingMusic] = useState(false);
+  const [editedMusicText, setEditedMusicText] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   const searchParams = useSearchParams();
@@ -532,6 +535,22 @@ export default function SongPageClient() {
     } catch (error) {
       console.error("Failed to save lyrics:", error);
       toast.error("Failed to save lyrics");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveMusicText = async () => {
+    if (!song) return;
+    setIsSaving(true);
+    try {
+      await updateSong(song.id, { musicData: editedMusicText });
+      setSong({ ...song, musicData: editedMusicText });
+      setIsEditingMusic(false);
+      toast.success("Music saved!");
+    } catch (error) {
+      console.error("Failed to save music:", error);
+      toast.error("Failed to save music");
     } finally {
       setIsSaving(false);
     }
@@ -1000,18 +1019,68 @@ export default function SongPageClient() {
               <div className="w-full flex flex-col flex-1 min-h-0">
                 {hasMusic ? (
                   <>
-                    {/* PDF Viewer */}
-                    <div className="flex-1 overflow-hidden">
-                      <MusicViewer
-                        key={song.id}
-                        type={song.musicType!}
-                        data={song.musicData!}
-                        fileName={song.musicFileName}
-                        isImmersive={true}
-                        zoom={pdfZoom}
-                        onZoomChange={handleZoomChange}
-                        scrollRef={musicScrollRef}
-                      />
+                    {/* PDF Viewer or Music Text Editor */}
+                    <div className="flex-1 overflow-hidden flex flex-col">
+                      {isEditingMusic && song.musicType === "text" ? (
+                        <div className="flex flex-col h-full">
+                          <div className="flex-1 p-4 overflow-y-auto">
+                            <Textarea
+                              value={editedMusicText}
+                              onChange={(e) => setEditedMusicText(e.target.value)}
+                              onKeyDown={(e) => {
+                                // Allow Tab key to insert a tab character
+                                if (e.key === "Tab") {
+                                  e.preventDefault();
+                                  const target = e.target as HTMLTextAreaElement;
+                                  const start = target.selectionStart;
+                                  const end = target.selectionEnd;
+                                  const newValue = editedMusicText.substring(0, start) + "\t" + editedMusicText.substring(end);
+                                  setEditedMusicText(newValue);
+                                  setTimeout(() => {
+                                    target.selectionStart = target.selectionEnd = start + 1;
+                                  }, 0);
+                                }
+                              }}
+                              className="min-h-full font-mono text-sm w-full resize-none border-0 focus-visible:ring-0 shadow-none bg-transparent"
+                              placeholder="Enter chord charts, tabs, or notation..."
+                            />
+                          </div>
+                          {/* Edit controls */}
+                          <div className="flex items-center justify-center gap-2 sm:gap-4 px-4 py-2 border-t border-border/50 bg-card/90 backdrop-blur-sm">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setIsEditingMusic(false);
+                                setEditedMusicText(song.musicData || "");
+                              }}
+                              className="gap-2"
+                            >
+                              <X className="h-4 w-4" />
+                              Cancel
+                            </Button>
+                            <Button size="sm" onClick={handleSaveMusicText} disabled={isSaving} className="gap-2">
+                              {isSaving ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Save className="h-4 w-4" />
+                              )}
+                              Save
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <MusicViewer
+                          key={song.id}
+                          type={song.musicType!}
+                          data={song.musicData!}
+                          fileName={song.musicFileName}
+                          isImmersive={true}
+                          zoom={pdfZoom}
+                          onZoomChange={handleZoomChange}
+                          scrollRef={musicScrollRef}
+                        />
+                      )}
                     </div>
 
                     {/* Music controls - bottom bar */}
@@ -1238,6 +1307,15 @@ export default function SongPageClient() {
                             <Heart className={cn("h-4 w-4 mr-2", song.isFavourite && "fill-current")} />
                             {song.isFavourite ? "Remove from Favourites" : "Add to Favourites"}
                           </DropdownMenuItem>
+                          {song.musicType === "text" && (
+                            <DropdownMenuItem onClick={() => {
+                              setEditedMusicText(song.musicData || "");
+                              setIsEditingMusic(true);
+                            }}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit Music
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
