@@ -37,7 +37,8 @@
     ],
     "macOS": {
       "minimumSystemVersion": "10.13",
-      "entitlements": "Entitlements.plist"
+      "entitlements": "Entitlements.plist",
+      "infoPlist": "Info.plist"
     },
     "iOS": {
       "developmentTeam": "7YEYWQKK25"
