@@ -192,6 +192,10 @@ Deployed on **Netlify**:
 Set these in Site settings → Environment variables:
 - `KC_COLLECTION_PASSWORD` - Password for KC Collection access
 
+## Terms of Use
+
+This code is licensed under the [CC BY-NC-ND 3.0](https://creativecommons.org/licenses/by-nc-nd/3.0/) licence.
+
 ## License
 
 This is a private songbook application. Only add songs you have the rights to use.
