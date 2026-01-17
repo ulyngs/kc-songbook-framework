@@ -8,6 +8,13 @@ import { Song, getSong, updateSong, getAllSongs } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
@@ -31,6 +38,8 @@ import {
   ALargeSmall,
   ZoomIn,
   Gauge,
+  MoreVertical,
+  Home,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -335,9 +344,9 @@ export default function SongPage({
     setMounted(true);
   }, []);
 
-  // Auto-scroll effect
+  // Auto-scroll effect - works for both lyrics and music views
   useEffect(() => {
-    if (!isScrolling || viewMode !== "lyrics" || isEditing) {
+    if (!isScrolling || isEditing) {
       if (scrollAnimationRef.current) {
         cancelAnimationFrame(scrollAnimationRef.current);
         scrollAnimationRef.current = null;
@@ -387,12 +396,12 @@ export default function SongPage({
     };
   }, [isScrolling, scrollSpeed, viewMode, isEditing]);
 
-  // Stop scrolling when switching views or editing
+  // Stop scrolling when editing
   useEffect(() => {
-    if (viewMode !== "lyrics" || isEditing) {
+    if (isEditing) {
       setIsScrolling(false);
     }
-  }, [viewMode, isEditing]);
+  }, [isEditing]);
 
   const adjustSpeed = useCallback((delta: number) => {
     setScrollSpeed((prev) => Math.max(5, Math.min(150, prev + delta)));
@@ -530,277 +539,111 @@ export default function SongPage({
   return (
     <div className="min-h-screen bg-background bg-pattern">
       <div className="gradient-warm min-h-screen">
-        {/* Invisible hover zone at top of screen to reveal header */}
-        {mounted && isHeaderHidden && createPortal(
-          <div
-            className="fixed top-0 left-0 right-0 h-4 z-[99999]"
-            onMouseEnter={() => setIsHeaderHovered(true)}
-            onTouchStart={() => setIsHeaderHovered(true)}
-          />,
-          document.body
-        )}
-
-        {/* Header */}
-        <header
-          className={`sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl transition-all duration-300 ${showHeader ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
-            }`}
-          onMouseLeave={() => {
-            if (isHeaderHidden) {
-              setIsHeaderHovered(false);
-            }
-          }}
-        >
-          <div className="container mx-auto px-2 sm:px-4">
-            <div className="flex h-16 items-center gap-2 sm:gap-4">
-              <div className="flex items-center gap-1 shrink-0">
-                <Link
-                  href="/"
-                  className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors p-2 -ml-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Link>
-                <SonglistSheet currentSongId={song.id} />
-              </div>
-
-              {/* Song title with prev/next - centered, fixed width on large screens */}
-              <div className="flex-1 flex items-center justify-center min-w-0">
-                <div className="flex items-center gap-1 sm:gap-2 max-w-full lg:w-[21vw]">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "shrink-0 h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground",
-                      !prevSongId && "opacity-0 pointer-events-none"
-                    )}
-                    onClick={() => prevSongId && router.push(`/song/${prevSongId}`)}
-                    disabled={!prevSongId}
-                    title="Previous song"
-                  >
-                    <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-                  </Button>
-
-                  <div
-                    className="flex flex-col items-center text-center min-w-0 flex-1"
-                  >
-                    <h1 className="font-display text-sm sm:text-base font-semibold truncate w-full flex items-center justify-center gap-1.5 sm:gap-3">
-                      <span className="truncate">{song.title}</span>
-                      <button
-                        onClick={handleToggleFavourite}
-                        className="inline-flex shrink-0 hover:scale-110 transition-transform"
-                        title={song.isFavourite ? "Remove from favourites" : "Add to favourites"}
-                      >
-                        <Heart
-                          className={cn(
-                            "h-3.5 w-3.5 sm:h-4 sm:w-4 transition-colors",
-                            song.isFavourite
-                              ? "fill-current text-foreground"
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
-                        />
-                      </button>
-                    </h1>
-                    <p className="text-xs sm:text-sm text-muted-foreground truncate w-full">
-                      {song.artist}
-                    </p>
-                  </div>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "shrink-0 h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground",
-                      !nextSongId && "opacity-0 pointer-events-none"
-                    )}
-                    onClick={() => nextSongId && router.push(`/song/${nextSongId}`)}
-                    disabled={!nextSongId}
-                    title="Next song"
-                  >
-                    <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* PDF Zoom controls - show in music view */}
-              {viewMode === "music" && hasMusic && (
-                <div className="flex items-center border rounded-md">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-r-none border-r"
-                    onClick={() => handleZoomChange(pdfZoom - 0.15)}
-                    disabled={pdfZoom <= 0.5}
-                    title="Zoom out (15%)"
-                  >
-                    <Minus className="h-3.5 w-3.5" />
-                  </Button>
-
-                  {isEditingZoom ? (
-                    <Input
-                      type="number"
-                      value={zoomInputValue}
-                      onChange={(e) => setZoomInputValue(e.target.value)}
-                      onBlur={handleZoomInputSubmit}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleZoomInputSubmit();
-                        } else if (e.key === "Escape") {
-                          setZoomInputValue(Math.round(pdfZoom * 100).toString());
-                          setIsEditingZoom(false);
-                        }
-                      }}
-                      className="w-16 h-8 text-center text-sm px-1 border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      min={50}
-                      max={500}
-                      autoFocus
-                    />
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setZoomInputValue(Math.round(pdfZoom * 100).toString());
-                        setIsEditingZoom(true);
-                      }}
-                      className="flex items-center gap-1.5 px-2 h-8 text-sm font-medium hover:bg-accent rounded-none transition-colors"
-                      title="Click to enter custom zoom"
-                    >
-                      <ZoomIn className="h-4 w-4 text-muted-foreground" />
-                      <span>{Math.round(pdfZoom * 100)}%</span>
-                    </button>
-                  )}
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-l-none border-l"
-                    onClick={() => handleZoomChange(pdfZoom + 0.15)}
-                    disabled={pdfZoom >= 5}
-                    title="Zoom in (15%)"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              )}
-
-              {/* Edit button - only show in lyrics view */}
-              {viewMode === "lyrics" && (
-                isEditing ? (
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setIsEditing(false);
-                        setEditedLyrics(song.lyrics || "");
-                      }}
-                    >
-                      <X className="h-4 w-4 sm:mr-1.5" />
-                      <span className="hidden sm:inline">Cancel</span>
-                    </Button>
-                    <Button size="sm" onClick={handleSaveLyrics} disabled={isSaving}>
-                      {isSaving ? (
-                        <Loader2 className="h-4 w-4 sm:mr-1.5 animate-spin" />
-                      ) : (
-                        <Save className="h-4 w-4 sm:mr-1.5" />
-                      )}
-                      <span className="hidden sm:inline">Save</span>
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsEditing(true)}
-                  >
-                    <Edit3 className="h-4 w-4 lg:mr-1.5" />
-                    <span className="hidden lg:inline">Edit</span>
-                  </Button>
-                )
-              )}
-
-              {/* View toggle */}
-              {(hasLyrics || hasMusic) && (
-                <ToggleGroup
-                  type="single"
-                  value={viewMode}
-                  onValueChange={(v) => v && setViewMode(v as ViewMode)}
-                  className="bg-muted rounded-lg p-1"
-                >
-                  <ToggleGroupItem
-                    value="lyrics"
-                    aria-label="View lyrics"
-                    disabled={!hasLyrics}
-                    className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm px-2 sm:px-3"
-                  >
-                    <LetterText className="h-4 w-4 sm:mr-1.5" />
-                    <span className="hidden lg:inline">Lyrics</span>
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="music"
-                    aria-label="View music"
-                    disabled={!hasMusic}
-                    className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm px-2 sm:px-3"
-                  >
-                    <Music className="h-4 w-4 sm:mr-1.5" />
-                    <span className="hidden lg:inline">Music</span>
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              )}
-
-              {/* Immersive mode toggle */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setIsHeaderHidden(!isHeaderHidden);
-                  setIsHeaderHovered(false);
-                }}
-                className="text-muted-foreground hover:text-foreground"
-                title={isHeaderHidden ? "Exit immersive mode" : "Enter immersive mode"}
-              >
-                {isHeaderHidden ? (
-                  <PanelBottomClose className="h-4 w-4" />
-                ) : (
-                  <PanelTopClose className="h-4 w-4" />
-                )}
-              </Button>
-
-              {/* Theme toggle */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                <span className="sr-only">Toggle theme</span>
-              </Button>
-            </div>
-          </div>
-        </header>
-
         {/* Content */}
         <main
           className={cn(
-            "transition-all duration-300",
+            "transition-all duration-300 flex flex-col",
             viewMode === "lyrics"
               ? isLyricsFullscreen
                 ? "px-0 py-0"
                 : "container mx-auto px-4 py-3"
-              : "px-0 py-0",
-            isHeaderHidden && !isHeaderHovered && "-mt-16"
+              : "px-0 py-0 flex-1 min-h-0"
           )}
+          style={viewMode === "music" ? { height: '100vh' } : undefined}
         >
-          <div className="page-transition">
+          <div className={cn("page-transition", viewMode === "music" && "flex flex-col flex-1 min-h-0")}>
             {viewMode === "lyrics" ? (
-              <div className="mx-auto" style={isLyricsFullscreen ? { width: '100%' } : { width: 'fit-content', maxWidth: '100%' }}>
+              <div className="mx-auto" style={(isLyricsFullscreen || isEditing) ? { width: '100%' } : { width: 'fit-content', maxWidth: '100%' }}>
                 {/* Lyrics content */}
                 {isEditing ? (
-                  <Textarea
-                    value={editedLyrics}
-                    onChange={(e) => setEditedLyrics(e.target.value)}
-                    className="min-h-[60vh] font-mono text-base leading-relaxed w-[600px] max-w-full"
-                    placeholder="Enter lyrics here..."
-                  />
+                  <div
+                    className={cn(
+                      "relative flex flex-col bg-card overflow-hidden transition-all duration-300",
+                      isLyricsFullscreen
+                        ? "rounded-none border-0"
+                        : "rounded-xl border border-border/50 shadow-sm"
+                    )}
+                    style={{
+                      height: isLyricsFullscreen ? "100vh" : "calc(100vh - 1.5rem)"
+                    }}
+                  >
+                    {/* Textarea for editing */}
+                    <div
+                      className={cn(
+                        "flex-1 p-8 sm:p-12 overflow-y-auto",
+                        isLyricsFullscreen && "pl-12 sm:pl-20"
+                      )}
+                    >
+                      <Textarea
+                        value={editedLyrics}
+                        onChange={(e) => setEditedLyrics(e.target.value)}
+                        className="min-h-full font-sans leading-relaxed w-full resize-none border-0 focus-visible:ring-0 shadow-none bg-transparent"
+                        style={{ fontSize: `${lyricsFontSize}px`, lineHeight: 1.4 }}
+                        placeholder="Enter lyrics here..."
+                      />
+                    </div>
+
+                    {/* Edit controls - bottom bar */}
+                    <div
+                      className="flex items-center justify-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 border-t border-border/50 bg-card/90 backdrop-blur-sm w-full overflow-x-auto"
+                      style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+                    >
+                      {/* Font size controls */}
+                      <div className="flex items-center border rounded-md bg-card">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-r-none border-r"
+                          onClick={() => setLyricsFontSize(lyricsFontSize - 2)}
+                          disabled={lyricsFontSize <= 8}
+                          title="Decrease font size"
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                        </Button>
+
+                        <div className="flex items-center gap-1.5 px-2 h-8 text-sm font-medium">
+                          <ALargeSmall className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-xs">{lyricsFontSize}</span>
+                        </div>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-l-none border-l"
+                          onClick={() => setLyricsFontSize(lyricsFontSize + 2)}
+                          disabled={lyricsFontSize >= 120}
+                          title="Increase font size"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+
+                      {/* Divider */}
+                      <div className="h-6 w-px bg-border" />
+
+                      {/* Cancel/Save buttons */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setIsEditing(false);
+                          setEditedLyrics(song.lyrics || "");
+                        }}
+                        className="gap-2"
+                      >
+                        <X className="h-4 w-4" />
+                        Cancel
+                      </Button>
+                      <Button size="sm" onClick={handleSaveLyrics} disabled={isSaving} className="gap-2">
+                        {isSaving ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="h-4 w-4" />
+                        )}
+                        Save
+                      </Button>
+                    </div>
+                  </div>
                 ) : hasLyrics ? (
                   <div
                     className={cn(
@@ -810,13 +653,7 @@ export default function SongPage({
                         : "rounded-xl border border-border/50 shadow-sm"
                     )}
                     style={{
-                      height: isLyricsFullscreen
-                        ? isHeaderHidden && !isHeaderHovered
-                          ? "100vh"
-                          : "calc(100vh - 4rem)"
-                        : isHeaderHidden && !isHeaderHovered
-                          ? "calc(100vh - 1.5rem)"
-                          : "calc(100vh - 5.5rem)"
+                      height: isLyricsFullscreen ? "100vh" : "calc(100vh - 1.5rem)"
                     }}
                   >
                     {/* Scrollable lyrics container */}
@@ -829,6 +666,14 @@ export default function SongPage({
                       style={{ touchAction: "pan-y" }}
                     >
                       <div className="lyrics-text font-sans max-w-none" style={{ fontSize: `${lyricsFontSize}px` }}>
+                        {/* Song title and artist header */}
+                        <div className="text-center mb-6">
+                          <h2 className="font-bold leading-tight">{song.title}</h2>
+                          <p className="text-muted-foreground italic mt-1" style={{ fontSize: `${lyricsFontSize * 0.75}px` }}>
+                            {song.isMovie ? 'from' : 'by'} {song.artist}
+                          </p>
+                        </div>
+
                         <ReactMarkdown
                           components={{
                             p: ({ children }) => <p className="whitespace-pre-wrap mb-0 last:mb-0" style={{ lineHeight: 1.4 }}>{children}</p>,
@@ -843,21 +688,15 @@ export default function SongPage({
                     </div>
 
                     {/* Lyrics controls - bottom bar */}
-                    <div className="flex items-center justify-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 border-t border-border/50 bg-card/90 backdrop-blur-sm w-full overflow-x-auto">
-                      {/* Fullscreen toggle */}
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8 bg-card"
-                        onClick={toggleLyricsFullscreen}
-                        title={isLyricsFullscreen ? "Exit full width" : "Enter full width"}
-                      >
-                        {isLyricsFullscreen ? (
-                          <Minimize2 className="h-4 w-4" />
-                        ) : (
-                          <Maximize2 className="h-4 w-4" />
-                        )}
-                      </Button>
+                    <div
+                      className="flex items-center justify-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 border-t border-border/50 bg-card/90 backdrop-blur-sm w-full overflow-x-auto"
+                      style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+                    >
+                      {/* Songlist button */}
+                      <SonglistSheet currentSongId={song.id} />
+
+                      {/* Divider */}
+                      <div className="h-6 w-px bg-border" />
 
                       {/* Font size controls */}
                       <div className="flex items-center border rounded-md bg-card">
@@ -912,6 +751,268 @@ export default function SongPage({
                           onClick={() => setLyricsFontSize(lyricsFontSize + 2)}
                           disabled={lyricsFontSize >= 120}
                           title="Increase font size"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+
+                      {/* Auto-scroll controls */}
+                      <div className="flex items-center border rounded-md bg-card">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={cn(
+                            "gap-2 rounded-r-none border-r",
+                            isScrolling && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                          )}
+                          onClick={() => setIsScrolling(!isScrolling)}
+                        >
+                          {isScrolling ? (
+                            <>
+                              <Pause className="h-4 w-4" />
+                              <span className="hidden sm:inline">Pause</span>
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-4 w-4" />
+                              <span className="hidden sm:inline">Auto-scroll</span>
+                            </>
+                          )}
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-none"
+                          onClick={() => adjustSpeed(-5)}
+                          disabled={scrollSpeed <= 5}
+                          title="Slower"
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                        </Button>
+                        {isEditingSpeed ? (
+                          <Input
+                            type="number"
+                            value={speedInputValue}
+                            onChange={(e) => setSpeedInputValue(e.target.value)}
+                            onBlur={handleSpeedInputSubmit}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                handleSpeedInputSubmit();
+                              } else if (e.key === "Escape") {
+                                setSpeedInputValue(String(scrollSpeed / 5));
+                                setIsEditingSpeed(false);
+                              }
+                            }}
+                            className="w-10 h-8 text-center text-xs px-1 border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            min={1}
+                            max={30}
+                            autoFocus
+                          />
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setSpeedInputValue(String(scrollSpeed / 5));
+                              setIsEditingSpeed(true);
+                            }}
+                            className="flex items-center gap-1 px-1 h-8 hover:bg-accent rounded-none transition-colors"
+                            title="Click to enter custom speed"
+                          >
+                            <span className="text-xs text-muted-foreground w-2 text-center font-mono">
+                              {scrollSpeed / 5}
+                            </span>
+                            <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
+                          </button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-l-none"
+                          onClick={() => adjustSpeed(5)}
+                          disabled={scrollSpeed >= 150}
+                          title="Faster"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+
+                      {/* View toggle - only show if both lyrics and music are available */}
+                      {hasLyrics && hasMusic && (
+                        <>
+                          {/* Divider */}
+                          <div className="h-6 w-px bg-border" />
+
+                          <ToggleGroup
+                            type="single"
+                            value={viewMode}
+                            onValueChange={(v) => v && setViewMode(v as ViewMode)}
+                            className="gap-1"
+                          >
+                            <ToggleGroupItem
+                              value="lyrics"
+                              aria-label="View lyrics"
+                              className="data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=off]:text-muted-foreground/50 hover:bg-transparent hover:text-foreground px-2"
+                            >
+                              <LetterText className="h-4 w-4" />
+                            </ToggleGroupItem>
+                            <ToggleGroupItem
+                              value="music"
+                              aria-label="View music"
+                              className="data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=off]:text-muted-foreground/50 hover:bg-transparent hover:text-foreground px-2"
+                            >
+                              <Music className="h-4 w-4" />
+                            </ToggleGroupItem>
+                          </ToggleGroup>
+                        </>
+                      )}
+
+                      {/* Home button */}
+                      <Link href="/">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                          <Home className="h-4 w-4" />
+                        </Button>
+                      </Link>
+
+                      {/* More options menu */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+                            {theme === "dark" ? (
+                              <>
+                                <Sun className="h-4 w-4 mr-2" />
+                                Light Mode
+                              </>
+                            ) : (
+                              <>
+                                <Moon className="h-4 w-4 mr-2" />
+                                Dark Mode
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={toggleLyricsFullscreen}>
+                            {isLyricsFullscreen ? (
+                              <>
+                                <Minimize2 className="h-4 w-4 mr-2" />
+                                Exit Full Width
+                              </>
+                            ) : (
+                              <>
+                                <Maximize2 className="h-4 w-4 mr-2" />
+                                Full Width
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                            <Edit3 className="h-4 w-4 mr-2" />
+                            Edit Lyrics
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleToggleFavourite}>
+                            <Heart className={cn("h-4 w-4 mr-2", song.isFavourite && "fill-current")} />
+                            {song.isFavourite ? "Remove from Favourites" : "Add to Favourites"}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-16">
+                    <LetterText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                    <p className="text-muted-foreground mb-4">
+                      No lyrics added yet
+                    </p>
+                    <Button onClick={() => setIsEditing(true)}>
+                      <Edit3 className="h-4 w-4 mr-2" />
+                      Add Lyrics
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="w-full flex flex-col flex-1 min-h-0">
+                {hasMusic ? (
+                  <>
+                    {/* PDF Viewer */}
+                    <div className="flex-1 overflow-hidden">
+                      <MusicViewer
+                        type={song.musicType!}
+                        data={song.musicData!}
+                        fileName={song.musicFileName}
+                        isImmersive={true}
+                        zoom={pdfZoom}
+                        onZoomChange={handleZoomChange}
+                      />
+                    </div>
+
+                    {/* Music controls - bottom bar */}
+                    <div
+                      className="flex items-center justify-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 border-t border-border/50 bg-card/90 backdrop-blur-sm w-full overflow-x-auto shrink-0"
+                      style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+                    >
+                      {/* Songlist button */}
+                      <SonglistSheet currentSongId={song.id} />
+
+                      {/* Divider */}
+                      <div className="h-6 w-px bg-border" />
+
+                      {/* PDF Zoom controls */}
+                      <div className="flex items-center border rounded-md bg-card">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-r-none border-r"
+                          onClick={() => handleZoomChange(pdfZoom - 0.15)}
+                          disabled={pdfZoom <= 0.5}
+                          title="Zoom out (15%)"
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                        </Button>
+
+                        {isEditingZoom ? (
+                          <Input
+                            type="number"
+                            value={zoomInputValue}
+                            onChange={(e) => setZoomInputValue(e.target.value)}
+                            onBlur={handleZoomInputSubmit}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                handleZoomInputSubmit();
+                              } else if (e.key === "Escape") {
+                                setZoomInputValue(Math.round(pdfZoom * 100).toString());
+                                setIsEditingZoom(false);
+                              }
+                            }}
+                            className="w-16 h-8 text-center text-sm px-1 border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            min={50}
+                            max={500}
+                            autoFocus
+                          />
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setZoomInputValue(Math.round(pdfZoom * 100).toString());
+                              setIsEditingZoom(true);
+                            }}
+                            className="flex items-center gap-1.5 px-2 h-8 text-sm font-medium hover:bg-accent rounded-none transition-colors"
+                            title="Click to enter custom zoom"
+                          >
+                            <ZoomIn className="h-4 w-4 text-muted-foreground" />
+                            <span>{Math.round(pdfZoom * 100)}%</span>
+                          </button>
+                        )}
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-l-none border-l"
+                          onClick={() => handleZoomChange(pdfZoom + 0.15)}
+                          disabled={pdfZoom >= 5}
+                          title="Zoom in (15%)"
                         >
                           <Plus className="h-3.5 w-3.5" />
                         </Button>
@@ -999,32 +1100,73 @@ export default function SongPage({
                           <Plus className="h-3.5 w-3.5" />
                         </Button>
                       </div>
+
+                      {/* View toggle - only show if both lyrics and music are available */}
+                      {hasLyrics && hasMusic && (
+                        <>
+                          {/* Divider */}
+                          <div className="h-6 w-px bg-border" />
+
+                          <ToggleGroup
+                            type="single"
+                            value={viewMode}
+                            onValueChange={(v) => v && setViewMode(v as ViewMode)}
+                            className="gap-1"
+                          >
+                            <ToggleGroupItem
+                              value="lyrics"
+                              aria-label="View lyrics"
+                              className="data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=off]:text-muted-foreground/50 hover:bg-transparent hover:text-foreground px-2"
+                            >
+                              <LetterText className="h-4 w-4" />
+                            </ToggleGroupItem>
+                            <ToggleGroupItem
+                              value="music"
+                              aria-label="View music"
+                              className="data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=off]:text-muted-foreground/50 hover:bg-transparent hover:text-foreground px-2"
+                            >
+                              <Music className="h-4 w-4" />
+                            </ToggleGroupItem>
+                          </ToggleGroup>
+                        </>
+                      )}
+
+                      {/* Home button */}
+                      <Link href="/">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                          <Home className="h-4 w-4" />
+                        </Button>
+                      </Link>
+
+                      {/* More options menu */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+                            {theme === "dark" ? (
+                              <>
+                                <Sun className="h-4 w-4 mr-2" />
+                                Light Mode
+                              </>
+                            ) : (
+                              <>
+                                <Moon className="h-4 w-4 mr-2" />
+                                Dark Mode
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleToggleFavourite}>
+                            <Heart className={cn("h-4 w-4 mr-2", song.isFavourite && "fill-current")} />
+                            {song.isFavourite ? "Remove from Favourites" : "Add to Favourites"}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-16">
-                    <LetterText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                    <p className="text-muted-foreground mb-4">
-                      No lyrics added yet
-                    </p>
-                    <Button onClick={() => setIsEditing(true)}>
-                      <Edit3 className="h-4 w-4 mr-2" />
-                      Add Lyrics
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="w-full">
-                {hasMusic ? (
-                  <MusicViewer
-                    type={song.musicType!}
-                    data={song.musicData!}
-                    fileName={song.musicFileName}
-                    isImmersive={isHeaderHidden && !isHeaderHovered}
-                    zoom={pdfZoom}
-                    onZoomChange={handleZoomChange}
-                  />
+                  </>
                 ) : (
                   <div className="text-center py-16">
                     <Music className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
@@ -1037,6 +1179,7 @@ export default function SongPage({
             )}
           </div>
         </main>
+
       </div>
     </div>
   );

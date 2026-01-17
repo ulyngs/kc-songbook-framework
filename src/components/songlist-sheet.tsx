@@ -134,114 +134,114 @@ export function SonglistSheet({ currentSongId }: SonglistSheetProps) {
   return (
     <>
       {hoverZone}
-      
+
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
           <Button
             variant="ghost"
             size="sm"
-            className="text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground gap-1.5"
           >
-            <List className="h-4 w-4 lg:mr-1.5" />
-            <span className="hidden lg:inline">Songs</span>
+            <List className="h-4 w-4" />
+            <span>Songs</span>
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="w-80 p-0">
-        <SheetHeader className="p-4 pb-2">
-          <SheetTitle className="font-display">Songlist</SheetTitle>
-        </SheetHeader>
+          <SheetHeader className="p-4 pb-2">
+            <SheetTitle className="font-display">Songlist</SheetTitle>
+          </SheetHeader>
 
-        {/* Tabs */}
-        <div className="px-4 pb-2">
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as FilterTab)}>
-            <TabsList className="w-full grid grid-cols-3">
-              <TabsTrigger value="all" className="text-sm">
-                All (–🎄)
-              </TabsTrigger>
-              <TabsTrigger value="xmas" className="text-sm">
-                🎄
-              </TabsTrigger>
-              <TabsTrigger value="favourites" className="text-sm">
-                <Heart className="h-4 w-4" />
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
-        {/* Search */}
-        <div className="px-4 pb-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search songs..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9"
-            />
+          {/* Tabs */}
+          <div className="px-4 pb-2">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as FilterTab)}>
+              <TabsList className="w-full grid grid-cols-3">
+                <TabsTrigger value="all" className="text-sm">
+                  All (–🎄)
+                </TabsTrigger>
+                <TabsTrigger value="xmas" className="text-sm">
+                  🎄
+                </TabsTrigger>
+                <TabsTrigger value="favourites" className="text-sm">
+                  <Heart className="h-4 w-4" />
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
-        </div>
 
-        {/* Song list */}
-        <ScrollArea className="h-[calc(100vh-11rem)]">
-          <div className="px-2 pb-4">
-            {filteredSongs.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                {activeTab === "favourites" 
-                  ? "No favourites yet" 
-                  : activeTab === "xmas" 
-                    ? "No Christmas songs" 
-                    : "No songs found"}
-              </p>
-            ) : (
-              <div className="space-y-1">
-                {filteredSongs.map((song) => (
-                  <Link
-                    key={song.id}
-                    href={`/song/${song.id}`}
-                    onClick={() => setOpen(false)}
-                  >
-                    <div
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
-                        song.id === currentSongId
-                          ? "bg-primary/10 text-primary"
-                          : "hover:bg-muted"
-                      )}
+          {/* Search */}
+          <div className="px-4 pb-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search songs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+          </div>
+
+          {/* Song list */}
+          <ScrollArea className="h-[calc(100vh-11rem)]">
+            <div className="px-2 pb-4">
+              {filteredSongs.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  {activeTab === "favourites"
+                    ? "No favourites yet"
+                    : activeTab === "xmas"
+                      ? "No Christmas songs"
+                      : "No songs found"}
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {filteredSongs.map((song) => (
+                    <Link
+                      key={song.id}
+                      href={`/song/${song.id}`}
+                      onClick={() => setOpen(false)}
                     >
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className={cn(
-                            "text-sm font-medium truncate flex items-center gap-1.5",
-                            song.id === currentSongId && "text-primary"
-                          )}
-                        >
-                          {song.isFavourite && (
-                            <Heart className="h-3 w-3 fill-foreground text-foreground shrink-0" />
-                          )}
-                          {song.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {song.artist}
-                        </p>
+                      <div
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                          song.id === currentSongId
+                            ? "bg-primary/10 text-primary"
+                            : "hover:bg-muted"
+                        )}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className={cn(
+                              "text-sm font-medium truncate flex items-center gap-1.5",
+                              song.id === currentSongId && "text-primary"
+                            )}
+                          >
+                            {song.isFavourite && (
+                              <Heart className="h-3 w-3 fill-foreground text-foreground shrink-0" />
+                            )}
+                            {song.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {song.artist}
+                          </p>
+                        </div>
+                        {song.key && (
+                          <Badge
+                            variant="secondary"
+                            className="font-mono text-xs shrink-0"
+                          >
+                            {song.key}
+                          </Badge>
+                        )}
                       </div>
-                      {song.key && (
-                        <Badge
-                          variant="secondary"
-                          className="font-mono text-xs shrink-0"
-                        >
-                          {song.key}
-                        </Badge>
-                      )}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-      </SheetContent>
-    </Sheet>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
