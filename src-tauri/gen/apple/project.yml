@@ -31,7 +31,6 @@ targets:
     sources:
       - path: Sources
       - path: Assets.xcassets
-      - path: Externals
       - path: app_iOS
       - path: assets
         buildPhase: resources
@@ -89,3 +88,6 @@ targets:
         outputFiles:
           - $(SRCROOT)/Externals/x86_64/${CONFIGURATION}/libapp.a
           - $(SRCROOT)/Externals/arm64/${CONFIGURATION}/libapp.a
+    postBuildScripts:
+      - script: rm -f "$TARGET_BUILD_DIR/$PRODUCT_NAME.app/libapp.a"
+        name: Remove libapp.a
