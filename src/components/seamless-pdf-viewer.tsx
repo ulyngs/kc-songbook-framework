@@ -459,7 +459,7 @@ export function SeamlessPdfViewer({
       {/* PDF pages container */}
       <div
         ref={contentRef}
-        className="flex flex-col items-center gap-4 py-4 px-2 min-h-full"
+        className="flex flex-col gap-4 py-4 px-2 min-h-full"
         style={{
           transform: `scale(${cssScale}) translate(${translate.x / cssScale}px, ${translate.y / cssScale}px)`,
           transformOrigin: "center top",
@@ -471,7 +471,7 @@ export function SeamlessPdfViewer({
           <canvas
             key={i}
             ref={setCanvasRef(i)}
-            className="shadow-lg rounded-sm bg-white"
+            className="shadow-lg rounded-sm bg-white mx-auto"
             style={{
               // Initial size before render
               width: info.width * baseScaleRef.current * renderedZoom,
