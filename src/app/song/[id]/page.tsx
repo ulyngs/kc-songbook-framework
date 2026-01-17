@@ -819,13 +819,13 @@ export default function SongPage({
                               setSpeedInputValue(String(scrollSpeed));
                               setIsEditingSpeed(true);
                             }}
-                            className="flex items-center gap-1 px-1 h-8 hover:bg-accent rounded-none transition-colors"
+                            className="flex items-center gap-0.5 pl-2 pr-1 h-8 hover:bg-accent rounded-none transition-colors"
                             title="Click to enter custom speed"
                           >
+                            <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
                             <span className="text-xs text-muted-foreground w-2 text-center font-mono">
                               {scrollSpeed}
                             </span>
-                            <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
                           </button>
                         )}
                         <Button
@@ -1085,13 +1085,13 @@ export default function SongPage({
                               setSpeedInputValue(String(scrollSpeed));
                               setIsEditingSpeed(true);
                             }}
-                            className="flex items-center gap-1 px-1 h-8 hover:bg-accent rounded-none transition-colors"
+                            className="flex items-center gap-0.5 pl-2 pr-1 h-8 hover:bg-accent rounded-none transition-colors"
                             title="Click to enter custom speed"
                           >
+                            <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
                             <span className="text-xs text-muted-foreground w-2 text-center font-mono">
                               {scrollSpeed}
                             </span>
-                            <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
                           </button>
                         )}
                         <Button
