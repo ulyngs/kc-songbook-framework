@@ -411,6 +411,29 @@ export default function SongPage({
     setScrollSpeed((prev) => Math.max(1, Math.min(30, prev + delta)));
   }, []);
 
+  // Hold-to-repeat for speed buttons
+  const speedRepeatRef = useRef<NodeJS.Timeout | null>(null);
+  const startSpeedRepeat = useCallback((delta: number) => {
+    // Prevent double-triggering from touch+mouse events
+    if (speedRepeatRef.current) return;
+    // Immediately adjust once
+    adjustSpeed(delta);
+    // Start repeating after a short delay
+    speedRepeatRef.current = setTimeout(() => {
+      speedRepeatRef.current = setInterval(() => {
+        adjustSpeed(delta);
+      }, 100);
+    }, 300);
+  }, [adjustSpeed]);
+
+  const stopSpeedRepeat = useCallback(() => {
+    if (speedRepeatRef.current) {
+      clearTimeout(speedRepeatRef.current);
+      clearInterval(speedRepeatRef.current);
+      speedRepeatRef.current = null;
+    }
+  }, []);
+
   // Handle speed input submit
   const handleSpeedInputSubmit = useCallback(() => {
     const parsed = parseInt(speedInputValue, 10);
@@ -787,10 +810,15 @@ export default function SongPage({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-none"
-                          onClick={() => adjustSpeed(-1)}
+                          className="h-8 w-8 rounded-none select-none touch-manipulation"
+                          style={{ WebkitTouchCallout: 'none' }}
+                          onMouseDown={() => startSpeedRepeat(-1)}
+                          onMouseUp={stopSpeedRepeat}
+                          onMouseLeave={stopSpeedRepeat}
+                          onTouchStart={() => startSpeedRepeat(-1)}
+                          onTouchEnd={stopSpeedRepeat}
                           disabled={scrollSpeed <= 1}
-                          title="Slower"
+                          title="Slower (hold to repeat)"
                         >
                           <Minus className="h-3.5 w-3.5" />
                         </Button>
@@ -819,7 +847,7 @@ export default function SongPage({
                               setSpeedInputValue(String(scrollSpeed));
                               setIsEditingSpeed(true);
                             }}
-                            className="flex items-center gap-0.5 pl-2 pr-1 h-8 hover:bg-accent rounded-none transition-colors"
+                            className="flex items-center gap-0.5 pl-1 pr-1 h-8 hover:bg-accent rounded-none transition-colors"
                             title="Click to enter custom speed"
                           >
                             <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
@@ -831,10 +859,15 @@ export default function SongPage({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-l-none"
-                          onClick={() => adjustSpeed(1)}
+                          className="h-8 w-8 rounded-l-none select-none touch-manipulation"
+                          style={{ WebkitTouchCallout: 'none' }}
+                          onMouseDown={() => startSpeedRepeat(1)}
+                          onMouseUp={stopSpeedRepeat}
+                          onMouseLeave={stopSpeedRepeat}
+                          onTouchStart={() => startSpeedRepeat(1)}
+                          onTouchEnd={stopSpeedRepeat}
                           disabled={scrollSpeed >= 30}
-                          title="Faster"
+                          title="Faster (hold to repeat)"
                         >
                           <Plus className="h-3.5 w-3.5" />
                         </Button>
@@ -1053,10 +1086,15 @@ export default function SongPage({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-none"
-                          onClick={() => adjustSpeed(-1)}
+                          className="h-8 w-8 rounded-none select-none touch-manipulation"
+                          style={{ WebkitTouchCallout: 'none' }}
+                          onMouseDown={() => startSpeedRepeat(-1)}
+                          onMouseUp={stopSpeedRepeat}
+                          onMouseLeave={stopSpeedRepeat}
+                          onTouchStart={() => startSpeedRepeat(-1)}
+                          onTouchEnd={stopSpeedRepeat}
                           disabled={scrollSpeed <= 1}
-                          title="Slower"
+                          title="Slower (hold to repeat)"
                         >
                           <Minus className="h-3.5 w-3.5" />
                         </Button>
@@ -1085,7 +1123,7 @@ export default function SongPage({
                               setSpeedInputValue(String(scrollSpeed));
                               setIsEditingSpeed(true);
                             }}
-                            className="flex items-center gap-0.5 pl-2 pr-1 h-8 hover:bg-accent rounded-none transition-colors"
+                            className="flex items-center gap-0.5 pl-1 pr-1 h-8 hover:bg-accent rounded-none transition-colors"
                             title="Click to enter custom speed"
                           >
                             <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
@@ -1097,10 +1135,15 @@ export default function SongPage({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-l-none"
-                          onClick={() => adjustSpeed(1)}
+                          className="h-8 w-8 rounded-l-none select-none touch-manipulation"
+                          style={{ WebkitTouchCallout: 'none' }}
+                          onMouseDown={() => startSpeedRepeat(1)}
+                          onMouseUp={stopSpeedRepeat}
+                          onMouseLeave={stopSpeedRepeat}
+                          onTouchStart={() => startSpeedRepeat(1)}
+                          onTouchEnd={stopSpeedRepeat}
                           disabled={scrollSpeed >= 30}
-                          title="Faster"
+                          title="Faster (hold to repeat)"
                         >
                           <Plus className="h-3.5 w-3.5" />
                         </Button>
