@@ -37,7 +37,10 @@ export function Header({
   const { theme, setTheme } = useTheme();
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+    <header
+      className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between gap-4">
           {/* Logo */}
@@ -64,20 +67,6 @@ export function Header({
                   Ulrik Lyngs
                 </a>
               </p>
-            </div>
-          </div>
-
-          {/* Search */}
-          <div className="flex-1 max-w-md">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search songs or artists..."
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className="pl-10 h-11 text-base bg-secondary/50 border-transparent focus:border-primary/50 focus:bg-background transition-colors"
-              />
             </div>
           </div>
 

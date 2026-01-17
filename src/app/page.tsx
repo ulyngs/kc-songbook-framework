@@ -143,6 +143,7 @@ export default function Home() {
               onToggleSort={toggleSort}
               onDelete={handleDeleteSong}
               searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
               christmasMode={christmasMode}
               onChristmasModeChange={setChristmasMode}
               onSongUpdated={loadSongs}

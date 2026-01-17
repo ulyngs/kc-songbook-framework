@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Song, updateSong } from "@/lib/db";
 import { SortField, SortOrder } from "@/app/page";
-import { ArrowUpDown, ArrowUp, ArrowDown, Music, MoreHorizontal, Pencil, Trash2, Heart } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Music, MoreHorizontal, Pencil, Trash2, Heart, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -43,6 +43,7 @@ interface SongListProps {
   onToggleSort: (field: SortField) => void;
   onDelete: (id: string) => void;
   searchQuery: string;
+  onSearchChange: (query: string) => void;
   christmasMode: boolean;
   onChristmasModeChange: (enabled: boolean) => void;
   onSongUpdated?: () => void;
@@ -55,6 +56,7 @@ export function SongList({
   onToggleSort,
   onDelete,
   searchQuery,
+  onSearchChange,
   christmasMode,
   onChristmasModeChange,
   onSongUpdated,
@@ -87,7 +89,7 @@ export function SongList({
 
   const handleSaveEdit = async () => {
     if (!editingSong) return;
-    
+
     setIsSaving(true);
     try {
       await updateSong(editingSong.id, {
@@ -175,10 +177,23 @@ export function SongList({
   return (
     <div className="page-transition flex flex-col items-center w-full">
       {/* Controls */}
-      <div className="flex items-center justify-between mb-4 mt-4 w-full max-w-3xl px-2 sm:px-0">
-        <p className="text-sm sm:text-base text-muted-foreground">
-          {songs.length} song{songs.length !== 1 ? "s" : ""}
-        </p>
+      <div className="flex items-center justify-between mb-4 mt-4 w-full max-w-3xl px-2 sm:px-0 gap-4">
+        <div className="flex items-center gap-4 flex-1">
+          {/* Search box */}
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="pl-9 h-9 text-sm bg-secondary/50 border-transparent focus:border-primary/50 focus:bg-background transition-colors"
+            />
+          </div>
+          <p className="text-sm text-muted-foreground whitespace-nowrap">
+            {songs.length} song{songs.length !== 1 ? "s" : ""}
+          </p>
+        </div>
         <div className="flex items-center gap-2 rounded-lg px-2 sm:px-3 py-1.5 dark:bg-background/80 dark:backdrop-blur-sm dark:border dark:border-border/50">
           <Switch
             id="christmas-mode"
@@ -221,7 +236,7 @@ export function SongList({
             <SortIcon field="artist" />
           </Button>
         </div>
-        
+
         {/* Song cards */}
         {songs.map((song) => (
           <div
@@ -243,7 +258,7 @@ export function SongList({
                 )}
               />
             </Button>
-            
+
             <Link
               href={`/song/${song.id}`}
               className="flex-1 min-w-0"
@@ -257,7 +272,7 @@ export function SongList({
                 {song.isMovie && <span className="text-sm flex-shrink-0">🎬</span>}
               </div>
             </Link>
-            
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
