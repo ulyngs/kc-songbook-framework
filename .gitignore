@@ -45,3 +45,10 @@ src/data/kc-collection.json
 
 # Local Netlify folder
 .netlify
+
+# Tauri - build artifacts and generated files
+/src-tauri/target/
+/src-tauri/gen/apple/app.xcodeproj/
+/src-tauri/gen/apple/Externals/
+/src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset/*.png
+/src-tauri/gen/android/
