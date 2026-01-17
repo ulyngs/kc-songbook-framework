@@ -149,7 +149,7 @@ export default function SongPage({
 
   // Auto-scroll state
   const [isScrolling, setIsScrolling] = useState(false);
-  const [scrollSpeed, setScrollSpeed] = useState(15); // pixels per second (displayed as speed / 5)
+  const [scrollSpeed, setScrollSpeed] = useState(5); // pixels per second (1:1 with displayed value, range 1-15)
   const lyricsRef = useRef<HTMLDivElement>(null);
   const musicScrollRef = useRef<HTMLDivElement>(null);
   const scrollAnimationRef = useRef<number | null>(null);
@@ -408,17 +408,17 @@ export default function SongPage({
   }, [isEditing]);
 
   const adjustSpeed = useCallback((delta: number) => {
-    setScrollSpeed((prev) => Math.max(5, Math.min(150, prev + delta)));
+    setScrollSpeed((prev) => Math.max(1, Math.min(30, prev + delta)));
   }, []);
 
   // Handle speed input submit
   const handleSpeedInputSubmit = useCallback(() => {
     const parsed = parseInt(speedInputValue, 10);
     if (!isNaN(parsed) && parsed >= 1 && parsed <= 30) {
-      setScrollSpeed(parsed * 5);
+      setScrollSpeed(parsed);
     } else {
       // Reset to current speed if invalid
-      setSpeedInputValue(String(scrollSpeed / 5));
+      setSpeedInputValue(String(scrollSpeed));
     }
     setIsEditingSpeed(false);
   }, [speedInputValue, scrollSpeed]);
@@ -788,8 +788,8 @@ export default function SongPage({
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 rounded-none"
-                          onClick={() => adjustSpeed(-5)}
-                          disabled={scrollSpeed <= 5}
+                          onClick={() => adjustSpeed(-1)}
+                          disabled={scrollSpeed <= 1}
                           title="Slower"
                         >
                           <Minus className="h-3.5 w-3.5" />
@@ -804,7 +804,7 @@ export default function SongPage({
                               if (e.key === "Enter") {
                                 handleSpeedInputSubmit();
                               } else if (e.key === "Escape") {
-                                setSpeedInputValue(String(scrollSpeed / 5));
+                                setSpeedInputValue(String(scrollSpeed));
                                 setIsEditingSpeed(false);
                               }
                             }}
@@ -816,14 +816,14 @@ export default function SongPage({
                         ) : (
                           <button
                             onClick={() => {
-                              setSpeedInputValue(String(scrollSpeed / 5));
+                              setSpeedInputValue(String(scrollSpeed));
                               setIsEditingSpeed(true);
                             }}
                             className="flex items-center gap-1 px-1 h-8 hover:bg-accent rounded-none transition-colors"
                             title="Click to enter custom speed"
                           >
                             <span className="text-xs text-muted-foreground w-2 text-center font-mono">
-                              {scrollSpeed / 5}
+                              {scrollSpeed}
                             </span>
                             <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
                           </button>
@@ -832,8 +832,8 @@ export default function SongPage({
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 rounded-l-none"
-                          onClick={() => adjustSpeed(5)}
-                          disabled={scrollSpeed >= 150}
+                          onClick={() => adjustSpeed(1)}
+                          disabled={scrollSpeed >= 30}
                           title="Faster"
                         >
                           <Plus className="h-3.5 w-3.5" />
@@ -1054,8 +1054,8 @@ export default function SongPage({
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 rounded-none"
-                          onClick={() => adjustSpeed(-5)}
-                          disabled={scrollSpeed <= 5}
+                          onClick={() => adjustSpeed(-1)}
+                          disabled={scrollSpeed <= 1}
                           title="Slower"
                         >
                           <Minus className="h-3.5 w-3.5" />
@@ -1070,7 +1070,7 @@ export default function SongPage({
                               if (e.key === "Enter") {
                                 handleSpeedInputSubmit();
                               } else if (e.key === "Escape") {
-                                setSpeedInputValue(String(scrollSpeed / 5));
+                                setSpeedInputValue(String(scrollSpeed));
                                 setIsEditingSpeed(false);
                               }
                             }}
@@ -1082,14 +1082,14 @@ export default function SongPage({
                         ) : (
                           <button
                             onClick={() => {
-                              setSpeedInputValue(String(scrollSpeed / 5));
+                              setSpeedInputValue(String(scrollSpeed));
                               setIsEditingSpeed(true);
                             }}
                             className="flex items-center gap-1 px-1 h-8 hover:bg-accent rounded-none transition-colors"
                             title="Click to enter custom speed"
                           >
                             <span className="text-xs text-muted-foreground w-2 text-center font-mono">
-                              {scrollSpeed / 5}
+                              {scrollSpeed}
                             </span>
                             <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
                           </button>
@@ -1098,8 +1098,8 @@ export default function SongPage({
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 rounded-l-none"
-                          onClick={() => adjustSpeed(5)}
-                          disabled={scrollSpeed >= 150}
+                          onClick={() => adjustSpeed(1)}
+                          disabled={scrollSpeed >= 30}
                           title="Faster"
                         >
                           <Plus className="h-3.5 w-3.5" />
