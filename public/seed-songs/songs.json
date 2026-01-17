@@ -11,5 +11,17 @@
     "musicFileName": "twelve-days-music.pdf",
     "createdAt": 1766913496366,
     "updatedAt": 1766913496366
+  },
+  {
+    "id": "amazing-grace",
+    "title": "Amazing Grace",
+    "artist": "Traditional",
+    "lyrics": "Amazing grace! how sweet the sound,\nThat saved a wretch like me\nI once was lost, but now am found,\nWas blind, but now I see.\n\n'Twas grace that taught my heart to fear,\nAnd grace my fears relieved\nHow precious did that grace appear\nThe hour I first believed\n\nThe Lord hath promised good to me\nHis word my hope secures\nHe will my shield and portion be\nAs long as life endures\n\nWhen we've been there ten thousand years\nBright shining as the sun\nWe've no less days to sing God's praise\nThan when we first begun",
+    "isPublicDomain": true,
+    "isXmas": false,
+    "musicType": "text",
+    "musicData": "\t|F\t\t\t\t\t|\t\t\t\t\t\t|Bb       \t\t\t|F\t\t\t\t\t\t|\nAmazing \t    grace, how sweet the sound,\n\t|F\t\t\t\t\t|\t\t\t\t\t\t|C       \t\t\t\t|\t\t\t\t\t\t|\nThat saved a wretch like me!\n\t|F\t\t\t\t\t|\t\t\t\t\t\t|Bb       \t\t\t|F\t\t\t\t\t\t|\nI once was lost,     but now\t\t\t\t am found,\n\t|Gm\t\t\t\t|C\t\t\t\t|F       \t\t\t\t|\t\t\t\t\t\t|\nWas blind, but now I see\n\n'Twas grace that taught my heart to fear\nAnd grace my fears relieved\nHow precious did that grace appear\nThe hour I first believed\n\nThe Lord hath promised good to me\nHis word my hope secures\nHe will my shield and portion be\nAs long as life endures\n\nWhen we've been there ten thousand years\nBright shining as the sun\nWe've no less days to sing God's praise\nThan when we first begun",
+    "createdAt": 1766913496366,
+    "updatedAt": 1766913496366
   }
 ]
