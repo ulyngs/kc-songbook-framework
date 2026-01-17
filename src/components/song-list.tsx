@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Song, updateSong } from "@/lib/db";
 import { SortField, SortOrder } from "@/app/page";
 import { ArrowUpDown, ArrowUp, ArrowDown, Music, MoreHorizontal, Pencil, Trash2, Heart, Search } from "lucide-react";
@@ -32,7 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import Link from "next/link";
+// Link import removed - using router.push for Tauri SPA compatibility
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -67,6 +68,7 @@ export function SongList({
   const [editArtist, setEditArtist] = useState("");
   const [editIsXmas, setEditIsXmas] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const router = useRouter();
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) {
@@ -259,9 +261,13 @@ export function SongList({
               />
             </Button>
 
-            <Link
-              href={`/song/${song.id}`}
-              className="flex-1 min-w-0"
+            <button
+              type="button"
+              className="flex-1 min-w-0 text-left cursor-pointer"
+              onClick={() => {
+                console.log(`[SongList] Navigating to: /song?id=${song.id}`);
+                router.push(`/song?id=${song.id}`);
+              }}
             >
               <div className="font-medium text-base truncate flex items-center gap-1.5">
                 {song.title}
@@ -271,7 +277,7 @@ export function SongList({
                 {song.artist}
                 {song.isMovie && <span className="text-sm flex-shrink-0">🎬</span>}
               </div>
-            </Link>
+            </button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -362,13 +368,17 @@ export function SongList({
                   </Button>
                 </TableCell>
                 <TableCell>
-                  <Link
-                    href={`/song/${song.id}`}
-                    className="flex items-center gap-2 font-medium hover:underline text-lg"
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 font-medium hover:underline text-lg cursor-pointer"
+                    onClick={() => {
+                      console.log(`[SongList] Navigating to: /song?id=${song.id}`);
+                      router.push(`/song?id=${song.id}`);
+                    }}
                   >
                     {song.title}
                     {song.isXmas && <span className="text-base">🎄</span>}
-                  </Link>
+                  </button>
                 </TableCell>
                 <TableCell className="text-muted-foreground text-lg">
                   <span className="flex items-center gap-2">

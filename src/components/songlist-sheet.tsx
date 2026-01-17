@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Song, getAllSongs } from "@/lib/db";
 import {
@@ -16,7 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { List, Search, Heart } from "lucide-react";
-import Link from "next/link";
+// Link import removed - using router.push for Tauri SPA compatibility
 import { cn } from "@/lib/utils";
 
 type FilterTab = "all" | "xmas" | "favourites";
@@ -42,6 +43,7 @@ export function SonglistSheet({ currentSongId }: SonglistSheetProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTabState] = useState<FilterTab>("all");
+  const router = useRouter();
 
   // Wrapper to persist tab to localStorage
   const setActiveTab = (tab: FilterTab) => {
@@ -196,10 +198,15 @@ export function SonglistSheet({ currentSongId }: SonglistSheetProps) {
               ) : (
                 <div className="space-y-1">
                   {filteredSongs.map((song) => (
-                    <Link
+                    <button
                       key={song.id}
-                      href={`/song/${song.id}`}
-                      onClick={() => setOpen(false)}
+                      type="button"
+                      className="w-full text-left"
+                      onClick={() => {
+                        console.log(`[SonglistSheet] Navigating to: /song?id=${song.id}`);
+                        setOpen(false);
+                        router.push(`/song?id=${song.id}`);
+                      }}
                     >
                       <div
                         className={cn(
@@ -234,7 +241,7 @@ export function SonglistSheet({ currentSongId }: SonglistSheetProps) {
                           </Badge>
                         )}
                       </div>
-                    </Link>
+                    </button>
                   ))}
                 </div>
               )}

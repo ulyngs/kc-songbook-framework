@@ -3,7 +3,7 @@
 import { useState, useEffect, use, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Song, getSong, updateSong, getAllSongs } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -93,13 +93,10 @@ function getInitialLyricsFullscreen(): boolean {
   return false;
 }
 
-export default function SongPageClient({
-  params,
-}: {
-  params: Promise<{ slug?: string[] }>;
-}) {
-  const { slug } = use(params);
-  const id = slug?.[0]; // Extract first segment as song ID
+//   params: Promise<{ slug?: string[] }>;
+// }) {
+//   const { slug } = use(params);
+export default function SongPageClient() {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [song, setSong] = useState<Song | null>(null);
@@ -111,13 +108,29 @@ export default function SongPageClient({
   const [isEditing, setIsEditing] = useState(false);
   const [editedLyrics, setEditedLyrics] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+  const searchParams = useSearchParams();
 
-  // Redirect to home if no song ID provided
+  // Get song ID from URL search params (reactive to URL changes)
+  const id = searchParams?.get("id") || undefined;
+
+  // Debug logging
   useEffect(() => {
-    if (!id) {
+    console.log("[SongPageClient] URL changed, ID:", id, "URL:", window.location.href);
+  }, [id]);
+
+  // Track mount state
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  // Redirect to home if no song ID provided (only after mount)
+  useEffect(() => {
+    if (hasMounted && !id) {
+      console.log("[SongPageClient] No ID found after mount, redirecting to home");
       router.replace("/");
     }
-  }, [id, router]);
+  }, [hasMounted, id, router]);
 
   // Wrapper to persist view mode to localStorage
   const setViewMode = useCallback((mode: ViewMode) => {
@@ -990,6 +1003,7 @@ export default function SongPageClient({
                     {/* PDF Viewer */}
                     <div className="flex-1 overflow-hidden">
                       <MusicViewer
+                        key={song.id}
                         type={song.musicType!}
                         data={song.musicData!}
                         fileName={song.musicFileName}
