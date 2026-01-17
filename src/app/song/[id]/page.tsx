@@ -744,7 +744,7 @@ export default function SongPage({
                             title="Click to enter custom font size"
                           >
                             <ALargeSmall className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-xs">{lyricsFontSize}</span>
+                            <span className="text-xs hidden sm:inline">{lyricsFontSize}</span>
                           </button>
                         )}
 
