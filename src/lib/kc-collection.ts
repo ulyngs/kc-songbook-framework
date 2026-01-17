@@ -6,10 +6,12 @@ export async function importKCCollection(password: string): Promise<boolean> {
 
     try {
         // Call the server-side API route with the password
+        // Send password in header for iOS WebView compatibility (body sometimes empty)
         const response = await fetch("/api/kc-collection", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
+                "X-KC-Password": password,
             },
             body: JSON.stringify({ password }),
         });
