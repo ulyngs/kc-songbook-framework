@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { addSong, fileToBase64, getFileType } from "@/lib/db";
 import {
   Dialog,
@@ -17,6 +17,54 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Image, Upload, X, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { importKCCollection } from "@/lib/kc-collection";
+
+// Check if we're running in Tauri (native app)
+const isTauri = () => {
+  return typeof window !== 'undefined' && '__TAURI__' in window;
+};
+
+// Pick file using Tauri's native dialog (for iOS/desktop native apps)
+async function openNativeFilePicker(): Promise<{ name: string; data: string; type: 'pdf' | 'image' } | null> {
+  try {
+    // Dynamically import to avoid issues on web
+    const { open } = await import('@tauri-apps/plugin-dialog');
+
+    const result = await open({
+      multiple: false,
+      filters: [{
+        name: 'Music Sheets',
+        extensions: ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp']
+      }]
+    });
+
+    if (!result) return null;
+
+    // result is a file path on iOS/desktop
+    const filePath = typeof result === 'string' ? result : result;
+
+    // Read the file using fetch (works with Tauri's asset protocol)
+    const response = await fetch(filePath);
+    const blob = await response.blob();
+
+    // Convert to base64
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    // Determine file type from path
+    const extension = filePath.split('.').pop()?.toLowerCase() || '';
+    const type: 'pdf' | 'image' = extension === 'pdf' ? 'pdf' : 'image';
+    const fileName = filePath.split('/').pop() || 'file';
+
+    return { name: fileName, data: base64, type };
+  } catch (error) {
+    console.error('Failed to open native file picker:', error);
+    return null;
+  }
+}
 
 interface AddSongDialogProps {
   open: boolean;
@@ -38,6 +86,8 @@ export function AddSongDialog({
   const [musicType, setMusicType] = useState<"file" | "text">("file");
   const [musicText, setMusicText] = useState("");
   const [musicFile, setMusicFile] = useState<File | null>(null);
+  // State for native file picker (Tauri/iOS)
+  const [nativeFileData, setNativeFileData] = useState<{ name: string; data: string; type: 'pdf' | 'image' } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // KC Collection Import State
@@ -67,6 +117,7 @@ export function AddSongDialog({
     setMusicType("file");
     setMusicText("");
     setMusicFile(null);
+    setNativeFileData(null);
     setShowPasswordInput(false);
     setPassword("");
   };
@@ -80,8 +131,24 @@ export function AddSongDialog({
         return;
       }
       setMusicFile(file);
+      setNativeFileData(null); // Clear native file if web file selected
     }
   };
+
+  // Handle file upload click - use native picker on Tauri, HTML input on web
+  const handleFileUploadClick = useCallback(async () => {
+    if (isTauri()) {
+      // Use native file picker on Tauri (iOS/desktop)
+      const result = await openNativeFilePicker();
+      if (result) {
+        setNativeFileData(result);
+        setMusicFile(null); // Clear web file if native file selected
+      }
+    } else {
+      // Use HTML file input on web
+      fileInputRef.current?.click();
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,10 +165,18 @@ export function AddSongDialog({
       let resolvedMusicType: "pdf" | "image" | "text" | undefined;
       let musicFileName: string | undefined;
 
-      if (musicType === "file" && musicFile) {
-        musicData = await fileToBase64(musicFile);
-        resolvedMusicType = getFileType(musicFile) || undefined;
-        musicFileName = musicFile.name;
+      if (musicType === "file" && (musicFile || nativeFileData)) {
+        if (nativeFileData) {
+          // Use native file data (already base64)
+          musicData = nativeFileData.data;
+          resolvedMusicType = nativeFileData.type;
+          musicFileName = nativeFileData.name;
+        } else if (musicFile) {
+          // Use web file
+          musicData = await fileToBase64(musicFile);
+          resolvedMusicType = getFileType(musicFile) || undefined;
+          musicFileName = musicFile.name;
+        }
       } else if (musicType === "text" && musicText.trim()) {
         musicData = musicText;
         resolvedMusicType = "text";
@@ -258,20 +333,24 @@ export function AddSongDialog({
                 <TabsContent value="file" className="mt-3">
                   <div
                     className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={handleFileUploadClick}
                   >
-                    {musicFile ? (
+                    {musicFile || nativeFileData ? (
                       <div className="flex items-center justify-center gap-3">
-                        {musicFile.type === "application/pdf" ? (
+                        {(musicFile?.type === "application/pdf" || nativeFileData?.type === "pdf") ? (
                           <FileText className="h-8 w-8 text-primary" />
                         ) : (
                           <Image className="h-8 w-8 text-primary" />
                         )}
                         <div className="text-left">
-                          <p className="font-medium text-sm">{musicFile.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {(musicFile.size / 1024).toFixed(1)} KB
+                          <p className="font-medium text-sm">
+                            {musicFile?.name || nativeFileData?.name}
                           </p>
+                          {musicFile && (
+                            <p className="text-xs text-muted-foreground">
+                              {(musicFile.size / 1024).toFixed(1)} KB
+                            </p>
+                          )}
                         </div>
                         <Button
                           type="button"
@@ -281,6 +360,7 @@ export function AddSongDialog({
                           onClick={(e) => {
                             e.stopPropagation();
                             setMusicFile(null);
+                            setNativeFileData(null);
                           }}
                         >
                           <X className="h-4 w-4" />
