@@ -13,7 +13,10 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:ios": "tauri ios",
-    "tauri:android": "tauri android"
+    "tauri:android": "tauri android",
+    "build:ios": "tauri ios build --export-method app-store-connect",
+    "build:mac": "tauri build --target universal-apple-darwin --bundles app && codesign --force --deep --sign \"Apple Distribution: ULRIK LYNGS (7YEYWQKK25)\" --entitlements src-tauri/Entitlements.plist \"src-tauri/target/universal-apple-darwin/release/bundle/macos/KC Songbook.app\" && rm -f \"KC Songbook.pkg\" && productbuild --sign \"3rd Party Mac Developer Installer: ULRIK LYNGS (7YEYWQKK25)\" --component \"src-tauri/target/universal-apple-darwin/release/bundle/macos/KC Songbook.app\" /Applications \"KC Songbook.pkg\"",
+    "build:appstore": "npm run build:ios && npm run build:mac"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
