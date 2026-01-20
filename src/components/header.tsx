@@ -38,7 +38,7 @@ export function Header({
 
   return (
     <header
-      className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl"
+      className="border-b border-border/50 bg-background/80 backdrop-blur-xl"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       <div className="container mx-auto px-4">

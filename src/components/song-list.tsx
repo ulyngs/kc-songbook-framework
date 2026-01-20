@@ -7,7 +7,6 @@ import { SortField, SortOrder } from "@/app/page";
 import { ArrowUpDown, ArrowUp, ArrowDown, Music, MoreHorizontal, Pencil, Trash2, Heart, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -25,14 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { EditSongDialog } from "@/components/edit-song-dialog";
 // Link import removed - using router.push for Tauri SPA compatibility
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -48,6 +40,7 @@ interface SongListProps {
   christmasMode: boolean;
   onChristmasModeChange: (enabled: boolean) => void;
   onSongUpdated?: () => void;
+  otherListMatchCount?: number;
 }
 
 export function SongList({
@@ -61,13 +54,10 @@ export function SongList({
   christmasMode,
   onChristmasModeChange,
   onSongUpdated,
+  otherListMatchCount = 0,
 }: SongListProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingSong, setEditingSong] = useState<Song | null>(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editArtist, setEditArtist] = useState("");
-  const [editIsXmas, setEditIsXmas] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
 
   const SortIcon = ({ field }: { field: SortField }) => {
@@ -83,31 +73,7 @@ export function SongList({
 
   const handleEdit = (song: Song) => {
     setEditingSong(song);
-    setEditTitle(song.title);
-    setEditArtist(song.artist);
-    setEditIsXmas(song.isXmas || false);
     setEditDialogOpen(true);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingSong) return;
-
-    setIsSaving(true);
-    try {
-      await updateSong(editingSong.id, {
-        title: editTitle,
-        artist: editArtist,
-        isXmas: editIsXmas,
-      });
-      toast.success("Song updated!");
-      setEditDialogOpen(false);
-      onSongUpdated?.();
-    } catch (error) {
-      console.error("Failed to update song:", error);
-      toast.error("Failed to update song");
-    } finally {
-      setIsSaving(false);
-    }
   };
 
   const handleDelete = (song: Song) => {
@@ -128,41 +94,37 @@ export function SongList({
     }
   };
 
-  if (songs.length === 0 && searchQuery) {
-    return (
-      <div className="text-center py-16">
-        <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
-          <Music className="h-8 w-8 text-muted-foreground" />
-        </div>
-        <h3 className="font-display text-lg font-semibold mb-1">No songs found</h3>
-        <p className="text-muted-foreground">
-          No songs match &quot;{searchQuery}&quot;
-          {christmasMode && " (Christmas)"}
-        </p>
-      </div>
-    );
-  }
-
-  if (songs.length === 0 && christmasMode) {
-    return (
-      <div className="page-transition w-full">
-        {/* Controls */}
-        <div className="flex items-center justify-between mb-4 px-2 sm:px-1">
-          <span className="text-sm text-muted-foreground">
-            0 songs
-          </span>
-          <div className="flex items-center gap-2 rounded-lg px-2 sm:px-3 py-1.5 dark:bg-background/80 dark:backdrop-blur-sm dark:border dark:border-border/50">
-            <Switch
-              id="christmas-mode"
-              checked={christmasMode}
-              onCheckedChange={onChristmasModeChange}
-              className="data-[state=unchecked]:bg-muted-foreground/30"
-            />
-            <Label htmlFor="christmas-mode" className="text-sm cursor-pointer">
-              🎄 <span className="hidden sm:inline">Christmas </span>songs
-            </Label>
+  // Helper to render "no results" message
+  const renderNoResults = () => {
+    if (songs.length === 0 && searchQuery) {
+      return (
+        <div className="text-center py-16">
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
+            <Music className="h-8 w-8 text-muted-foreground" />
           </div>
+          <h3 className="font-display text-lg font-semibold mb-1">No songs found</h3>
+          <p className="text-muted-foreground">
+            No songs match &quot;{searchQuery}&quot;
+            {christmasMode ? " in Christmas songs" : ""}
+          </p>
+          {otherListMatchCount > 0 && (
+            <p className="text-sm text-muted-foreground mt-2">
+              {otherListMatchCount} match{otherListMatchCount !== 1 ? "es" : ""} found in{" "}
+              <button
+                type="button"
+                className="text-primary hover:underline cursor-pointer"
+                onClick={() => onChristmasModeChange(!christmasMode)}
+              >
+                {christmasMode ? "regular songs" : "Christmas songs"}
+              </button>
+            </p>
+          )}
         </div>
+      );
+    }
+
+    if (songs.length === 0 && christmasMode) {
+      return (
         <div className="text-center py-16">
           <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
             <span className="text-3xl">🎄</span>
@@ -172,14 +134,16 @@ export function SongList({
             No songs are marked as Christmas songs yet.
           </p>
         </div>
-      </div>
-    );
-  }
+      );
+    }
+
+    return null;
+  };
 
   return (
     <div className="page-transition flex flex-col items-center w-full">
       {/* Controls */}
-      <div className="flex items-center justify-between mb-4 mt-4 w-full max-w-3xl px-2 sm:px-0 gap-4">
+      <div className="sticky top-0 z-40 flex items-center justify-between mb-4 mt-4 w-full max-w-3xl px-3 gap-4 py-3 bg-background/80 backdrop-blur-xl rounded-md border">
         <div className="flex items-center gap-4 flex-1">
           {/* Search box */}
           <div className="relative flex-1 max-w-xs">
@@ -196,7 +160,7 @@ export function SongList({
             {songs.length} song{songs.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <div className="flex items-center gap-2 rounded-lg px-2 sm:px-3 py-1.5 dark:bg-background/80 dark:backdrop-blur-sm dark:border dark:border-border/50">
+        <div className="flex items-center gap-2 rounded-lg px-2 sm:px-3 py-1.5">
           <Switch
             id="christmas-mode"
             checked={christmasMode}
@@ -209,268 +173,230 @@ export function SongList({
         </div>
       </div>
 
-      {/* Mobile card layout */}
-      <div className="md:hidden w-full px-2 space-y-2">
-        {/* Mobile sort controls */}
-        <div className="flex gap-2 mb-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onToggleSort("title")}
-            className={cn(
-              "flex-1 text-sm",
-              sortField === "title" && "bg-accent"
-            )}
-          >
-            Song
-            <SortIcon field="title" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onToggleSort("artist")}
-            className={cn(
-              "flex-1 text-sm",
-              sortField === "artist" && "bg-accent"
-            )}
-          >
-            Artist
-            <SortIcon field="artist" />
-          </Button>
-        </div>
+      {/* No results message */}
+      {renderNoResults()}
 
-        {/* Song cards */}
-        {songs.map((song) => (
-          <div
-            key={song.id}
-            className="bg-background/80 backdrop-blur-xl rounded-lg border p-3 flex items-center gap-3"
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 flex-shrink-0"
-              onClick={() => handleToggleFavourite(song)}
-            >
-              <Heart
-                className={cn(
-                  "h-4 w-4 transition-colors",
-                  song.isFavourite
-                    ? "fill-foreground text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              />
-            </Button>
-
-            <button
-              type="button"
-              className="flex-1 min-w-0 text-left cursor-pointer"
-              onClick={() => {
-                console.log(`[SongList] Navigating to: /song?id=${song.id}`);
-                router.push(`/song?id=${song.id}`);
-              }}
-            >
-              <div className="font-medium text-base truncate flex items-center gap-1.5">
-                {song.title}
-                {song.isXmas && <span className="text-sm flex-shrink-0">🎄</span>}
-              </div>
-              <div className="text-sm text-muted-foreground truncate flex items-center gap-1.5">
-                {song.artist}
-                {song.isMovie && <span className="text-sm flex-shrink-0">🎬</span>}
-              </div>
-            </button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="flex h-8 w-8 p-0 data-[state=open]:bg-muted flex-shrink-0"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                  <span className="sr-only">Open menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[160px]">
-                <DropdownMenuItem onClick={() => handleEdit(song)}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => handleDelete(song)}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        ))}
-      </div>
-
-      {/* Desktop table layout */}
-      <div className="hidden md:block rounded-md border w-full max-w-3xl bg-background/80 backdrop-blur-xl [&_*]:text-black dark:[&_*]:text-white">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[40px] text-center">
-                <Heart className="h-4 w-4 text-muted-foreground inline-block" />
-              </TableHead>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  onClick={() => onToggleSort("title")}
-                  className={cn(
-                    "-ml-4 h-10 text-base data-[state=open]:bg-accent",
-                    sortField === "title" && "text-foreground"
-                  )}
-                >
-                  Song
-                  <SortIcon field="title" />
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  onClick={() => onToggleSort("artist")}
-                  className={cn(
-                    "-ml-4 h-10 text-base data-[state=open]:bg-accent",
-                    sortField === "artist" && "text-foreground"
-                  )}
-                >
-                  Artist
-                  <SortIcon field="artist" />
-                </Button>
-              </TableHead>
-              <TableHead className="w-[50px]">
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {songs.map((song) => (
-              <TableRow key={song.id}>
-                <TableCell className="text-center">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => handleToggleFavourite(song)}
-                  >
-                    <Heart
-                      className={cn(
-                        "h-4 w-4 transition-colors",
-                        song.isFavourite
-                          ? "fill-foreground text-foreground"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    />
-                  </Button>
-                </TableCell>
-                <TableCell>
-                  <button
-                    type="button"
-                    className="flex items-center gap-2 font-medium hover:underline text-lg cursor-pointer"
-                    onClick={() => {
-                      console.log(`[SongList] Navigating to: /song?id=${song.id}`);
-                      router.push(`/song?id=${song.id}`);
-                    }}
-                  >
-                    {song.title}
-                    {song.isXmas && <span className="text-base">🎄</span>}
-                  </button>
-                </TableCell>
-                <TableCell className="text-muted-foreground text-lg">
-                  <span className="flex items-center gap-2">
-                    {song.artist}
-                    {song.isMovie && <span className="text-base">🎬</span>}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        className="flex h-8 w-8 p-0 data-[state=open]:bg-muted"
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Open menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-[160px]">
-                      <DropdownMenuItem onClick={() => handleEdit(song)}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => handleDelete(song)}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Edit Song</DialogTitle>
-            <DialogDescription>
-              Make changes to the song details here.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="title">Song Title</Label>
-              <Input
-                id="title"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                placeholder="Enter song title"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="artist">Artist</Label>
-              <Input
-                id="artist"
-                value={editArtist}
-                onChange={(e) => setEditArtist(e.target.value)}
-                placeholder="Enter artist name"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="edit-xmas"
-                checked={editIsXmas}
-                onCheckedChange={(checked) => setEditIsXmas(checked === true)}
-              />
-              <Label htmlFor="edit-xmas" className="cursor-pointer">
-                🎄 Christmas Song
-              </Label>
-            </div>
-          </div>
-          <DialogFooter>
+      {/* Mobile card layout - only show if there are songs */}
+      {songs.length > 0 && (
+        <div className="md:hidden w-full px-2 space-y-2">
+          {/* Mobile sort controls */}
+          <div className="flex gap-2 mb-3">
             <Button
               variant="outline"
-              onClick={() => setEditDialogOpen(false)}
+              size="sm"
+              onClick={() => onToggleSort("title")}
+              className={cn(
+                "flex-1 text-sm",
+                sortField === "title" && "bg-accent"
+              )}
             >
-              Cancel
+              Song
+              <SortIcon field="title" />
             </Button>
-            <Button onClick={handleSaveEdit} disabled={isSaving}>
-              {isSaving ? "Saving..." : "Save changes"}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onToggleSort("artist")}
+              className={cn(
+                "flex-1 text-sm",
+                sortField === "artist" && "bg-accent"
+              )}
+            >
+              Artist
+              <SortIcon field="artist" />
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+
+          {/* Song cards */}
+          {songs.map((song) => (
+            <div
+              key={song.id}
+              className="bg-background/80 backdrop-blur-xl rounded-lg border p-3 flex items-center gap-3"
+            >
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 flex-shrink-0"
+                onClick={() => handleToggleFavourite(song)}
+              >
+                <Heart
+                  className={cn(
+                    "h-4 w-4 transition-colors",
+                    song.isFavourite
+                      ? "fill-foreground text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                />
+              </Button>
+
+              <button
+                type="button"
+                className="flex-1 min-w-0 text-left cursor-pointer"
+                onClick={() => {
+                  console.log(`[SongList] Navigating to: /song?id=${song.id}`);
+                  router.push(`/song?id=${song.id}`);
+                }}
+              >
+                <div className="font-medium text-base truncate flex items-center gap-1.5">
+                  {song.title}
+                  {song.isXmas && <span className="text-sm flex-shrink-0">🎄</span>}
+                </div>
+                <div className="text-sm text-muted-foreground truncate flex items-center gap-1.5">
+                  {song.artist}
+                  {song.isMovie && <span className="text-sm flex-shrink-0">🎬</span>}
+                </div>
+              </button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="flex h-8 w-8 p-0 data-[state=open]:bg-muted flex-shrink-0"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                    <span className="sr-only">Open menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[160px]">
+                  <DropdownMenuItem onClick={() => handleEdit(song)}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => handleDelete(song)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Desktop table layout */}
+      {songs.length > 0 && (
+        <div className="hidden md:block rounded-md border w-full max-w-3xl bg-background/80 backdrop-blur-xl [&_*]:text-black dark:[&_*]:text-white">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[40px] text-center">
+                  <Heart className="h-4 w-4 text-muted-foreground inline-block" />
+                </TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    onClick={() => onToggleSort("title")}
+                    className={cn(
+                      "-ml-4 h-10 text-base data-[state=open]:bg-accent",
+                      sortField === "title" && "text-foreground"
+                    )}
+                  >
+                    Song
+                    <SortIcon field="title" />
+                  </Button>
+                </TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    onClick={() => onToggleSort("artist")}
+                    className={cn(
+                      "-ml-4 h-10 text-base data-[state=open]:bg-accent",
+                      sortField === "artist" && "text-foreground"
+                    )}
+                  >
+                    Artist
+                    <SortIcon field="artist" />
+                  </Button>
+                </TableHead>
+                <TableHead className="w-[50px]">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {songs.map((song) => (
+                <TableRow key={song.id}>
+                  <TableCell className="text-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleToggleFavourite(song)}
+                    >
+                      <Heart
+                        className={cn(
+                          "h-4 w-4 transition-colors",
+                          song.isFavourite
+                            ? "fill-foreground text-foreground"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      />
+                    </Button>
+                  </TableCell>
+                  <TableCell className="pr-6">
+                    <button
+                      type="button"
+                      className="flex items-center gap-2 font-medium hover:underline text-lg cursor-pointer text-left"
+                      onClick={() => {
+                        console.log(`[SongList] Navigating to: /song?id=${song.id}`);
+                        router.push(`/song?id=${song.id}`);
+                      }}
+                    >
+                      {song.title}
+                      {song.isXmas && <span className="text-base">🎄</span>}
+                    </button>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-lg">
+                    <span className="flex items-center gap-2">
+                      {song.artist}
+                      {song.isMovie && <span className="text-base">🎬</span>}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="flex h-8 w-8 p-0 data-[state=open]:bg-muted"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Open menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-[160px]">
+                        <DropdownMenuItem onClick={() => handleEdit(song)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => handleDelete(song)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* Edit Dialog */}
+      <EditSongDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        song={editingSong}
+        onSongUpdated={() => onSongUpdated?.()}
+      />
     </div>
   );
 }

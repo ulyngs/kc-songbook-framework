@@ -82,6 +82,21 @@ export default function Home() {
     return result;
   }, [songs, searchQuery, sortField, sortOrder, christmasMode]);
 
+  // Count how many songs match the search in the OTHER list (xmas vs non-xmas)
+  const otherListMatchCount = useMemo(() => {
+    if (!searchQuery) return 0;
+
+    const query = searchQuery.toLowerCase();
+    // Get songs from the opposite list
+    const otherList = songs.filter((song) => christmasMode ? !song.isXmas : song.isXmas);
+
+    return otherList.filter(
+      (song) =>
+        song.title.toLowerCase().includes(query) ||
+        song.artist.toLowerCase().includes(query)
+    ).length;
+  }, [songs, searchQuery, christmasMode]);
+
   const handleSongAdded = () => {
     loadSongs();
     setAddDialogOpen(false);
@@ -147,6 +162,7 @@ export default function Home() {
               christmasMode={christmasMode}
               onChristmasModeChange={setChristmasMode}
               onSongUpdated={loadSongs}
+              otherListMatchCount={otherListMatchCount}
             />
           )}
         </main>
