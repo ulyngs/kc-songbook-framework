@@ -319,7 +319,7 @@ export function AddSongDialog({
 
             {/* Tempo */}
             <div className="space-y-2">
-              <Label htmlFor="tempo">Tempo (optional)</Label>
+              <Label htmlFor="tempo">BPM (optional)</Label>
               <Input
                 id="tempo"
                 value={tempo}

@@ -52,6 +52,7 @@ import ReactMarkdown from "react-markdown";
 import { SeamlessPdfViewer } from "@/components/seamless-pdf-viewer";
 import { ChordSheetRenderer } from "@/components/chord-sheet-renderer";
 import { ChordSheetEditor } from "@/components/chord-sheet-editor";
+import { EditSongDialog } from "@/components/edit-song-dialog";
 
 type ViewMode = "lyrics" | "music";
 
@@ -221,6 +222,9 @@ export default function SongPageClient() {
   const [pdfZoom, setPdfZoom] = useState(1.1);
   const [isEditingZoom, setIsEditingZoom] = useState(false);
   const [zoomInputValue, setZoomInputValue] = useState("100");
+
+  // Edit song dialog state
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Toggle lyrics fullscreen
   const toggleLyricsFullscreen = useCallback(() => {
@@ -992,9 +996,9 @@ export default function SongPageClient() {
                             )}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                          <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
                             <Edit3 className="h-4 w-4 mr-2" />
-                            Edit Lyrics
+                            Edit Song
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={handleToggleFavourite}>
                             <Heart className={cn("h-4 w-4 mr-2", song.isFavourite && "fill-current")} />
@@ -1067,6 +1071,10 @@ export default function SongPageClient() {
                           zoom={pdfZoom}
                           onZoomChange={handleZoomChange}
                           scrollRef={musicScrollRef}
+                          title={song.title}
+                          artist={song.artist}
+                          isMovie={song.isMovie}
+                          tempo={song.tempo}
                         />
                       )}
                     </div>
@@ -1295,15 +1303,10 @@ export default function SongPageClient() {
                             <Heart className={cn("h-4 w-4 mr-2", song.isFavourite && "fill-current")} />
                             {song.isFavourite ? "Remove from Favourites" : "Add to Favourites"}
                           </DropdownMenuItem>
-                          {song.musicType === "text" && (
-                            <DropdownMenuItem onClick={() => {
-                              setEditedMusicText(song.musicData || "");
-                              setIsEditingMusic(true);
-                            }}>
-                              <Pencil className="h-4 w-4 mr-2" />
-                              Edit Music
-                            </DropdownMenuItem>
-                          )}
+                          <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
+                            <Edit3 className="h-4 w-4 mr-2" />
+                            Edit Song
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -1322,6 +1325,20 @@ export default function SongPageClient() {
         </main>
 
       </div>
+
+      {/* Edit Song Dialog */}
+      <EditSongDialog
+        song={song}
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        onSongUpdated={async () => {
+          // Refresh the song data after edit
+          const updatedSong = await getSong(song.id);
+          if (updatedSong) {
+            setSong(updatedSong);
+          }
+        }}
+      />
     </div>
   );
 }
@@ -1334,6 +1351,10 @@ function MusicViewer({
   zoom,
   onZoomChange,
   scrollRef,
+  title,
+  artist,
+  isMovie,
+  tempo,
 }: {
   type: "pdf" | "image" | "text";
   data: string;
@@ -1342,6 +1363,10 @@ function MusicViewer({
   zoom?: number;
   onZoomChange?: (zoom: number) => void;
   scrollRef?: React.RefObject<HTMLDivElement | null>;
+  title?: string;
+  artist?: string;
+  isMovie?: boolean;
+  tempo?: string;
 }) {
   // Handle pinch-to-zoom for text music
   const textMusicContainerRef = useRef<HTMLDivElement | null>(null);
@@ -1367,13 +1392,108 @@ function MusicViewer({
       node.removeEventListener("wheel", handleWheel);
     };
   }, [type, zoom, onZoomChange]);
+  // Metronome state and logic
+  const [isMetronomeActive, setIsMetronomeActive] = useState(false);
+  const metronomeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  const playClick = useCallback(() => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext();
+    }
+    const ctx = audioContextRef.current;
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    oscillator.frequency.value = 800;
+    oscillator.type = 'sine';
+
+    gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.1);
+  }, []);
+
+  const toggleMetronome = useCallback(() => {
+    if (isMetronomeActive) {
+      // Stop metronome
+      if (metronomeIntervalRef.current) {
+        clearInterval(metronomeIntervalRef.current);
+        metronomeIntervalRef.current = null;
+      }
+      setIsMetronomeActive(false);
+    } else {
+      // Parse BPM from tempo string (e.g., "170", "80 BPM", "120bpm")
+      const bpmMatch = tempo?.match(/\d+/);
+      if (bpmMatch) {
+        const bpm = parseInt(bpmMatch[0], 10);
+        const intervalMs = 60000 / bpm;
+
+        // Play first click immediately
+        playClick();
+
+        // Start interval
+        metronomeIntervalRef.current = setInterval(playClick, intervalMs);
+        setIsMetronomeActive(true);
+      }
+    }
+  }, [isMetronomeActive, tempo, playClick]);
+
+  // Clean up metronome on unmount
+  useEffect(() => {
+    return () => {
+      if (metronomeIntervalRef.current) {
+        clearInterval(metronomeIntervalRef.current);
+      }
+    };
+  }, []);
 
   if (type === "text") {
     // Base font size is 14px, zoom is a decimal (e.g., 1.1 = 110%)
     const fontSize = zoom ? Math.round(14 * zoom) : 14;
     return (
       <div ref={textMusicContainerRef} className="flex justify-center py-8 px-4">
-        <div className="bg-card rounded-xl border border-border/50 p-6 sm:p-8 shadow-sm overflow-auto">
+        <div className="relative bg-card rounded-xl border border-border/50 p-6 sm:p-8 shadow-sm overflow-auto">
+          {/* Tempo badge in top-right corner - clickable for metronome if numeric */}
+          {tempo && (() => {
+            const hasNumericBpm = /\d+/.test(tempo);
+            return hasNumericBpm ? (
+              <button
+                onClick={toggleMetronome}
+                className={cn(
+                  "absolute top-2 right-2 px-2 py-0.5 rounded-md text-xs transition-colors cursor-pointer flex items-center gap-1 group",
+                  isMetronomeActive
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+                title={isMetronomeActive ? "Click to stop metronome" : "Click to start metronome"}
+              >
+                {isMetronomeActive ? (
+                  <Pause className="h-3 w-3" />
+                ) : (
+                  <Play className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                )}
+                {tempo}
+              </button>
+            ) : (
+              <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-xs bg-muted text-muted-foreground">
+                {tempo}
+              </div>
+            );
+          })()}
+          {/* Song header */}
+          {title && (
+            <div className="text-center mb-6">
+              <h2 className="font-bold leading-tight" style={{ fontSize: `${fontSize * 1.5}px` }}>{title}</h2>
+              <p className="text-muted-foreground italic mt-1" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                {isMovie ? 'from' : 'by'} {artist}
+              </p>
+            </div>
+          )}
           <ChordSheetRenderer text={data} fontSize={fontSize} />
         </div>
       </div>

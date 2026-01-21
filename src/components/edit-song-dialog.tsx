@@ -371,7 +371,7 @@ export function EditSongDialog({
 
                     {/* Tempo */}
                     <div className="space-y-2">
-                        <Label htmlFor="edit-tempo">Tempo (optional)</Label>
+                        <Label htmlFor="edit-tempo">BPM (optional)</Label>
                         <Input
                             id="edit-tempo"
                             value={tempo}
