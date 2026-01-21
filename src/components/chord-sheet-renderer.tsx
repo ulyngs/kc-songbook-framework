@@ -135,6 +135,95 @@ function renderUnderlines(text: string, keyPrefix: string = ""): React.ReactNode
     return parts;
 }
 
+// Time signature component - renders as stacked numbers
+function TimeSignature({ top, bottom }: { top: string; bottom: string }) {
+    return (
+        <span className="inline-flex flex-col items-center justify-center leading-none mx-0.5 align-middle" style={{ verticalAlign: 'middle' }}>
+            <span className="text-[0.7em] font-bold leading-none">{top}</span>
+            <span className="text-[0.7em] font-bold leading-none">{bottom}</span>
+        </span>
+    );
+}
+
+// Render time signatures in text (e.g., 3/4, 6/4, 12/8)
+function renderTimeSignatures(text: string, keyPrefix: string = ""): React.ReactNode[] {
+    const parts: React.ReactNode[] = [];
+    let remaining = text;
+    let key = 0;
+
+    // Match time signatures: 1 or 2 digit numbers separated by / 
+    // Must be at word boundary (not part of a chord like Bb/d)
+    const timeSignaturePattern = /(?<![A-Ga-g#b])(\d{1,2})\/(\d{1,2})(?![A-Ga-g])/;
+
+    while (remaining.length > 0) {
+        const match = remaining.match(timeSignaturePattern);
+
+        if (match && match.index !== undefined) {
+            // Add text before the match
+            if (match.index > 0) {
+                parts.push(
+                    <span key={`${keyPrefix}${key++}`}>{remaining.substring(0, match.index)}</span>
+                );
+            }
+
+            // Add the time signature
+            parts.push(
+                <TimeSignature key={`${keyPrefix}ts-${key++}`} top={match[1]} bottom={match[2]} />
+            );
+
+            remaining = remaining.substring(match.index + match[0].length);
+        } else {
+            // No more matches, add remaining text
+            parts.push(<span key={`${keyPrefix}${key++}`}>{remaining}</span>);
+            break;
+        }
+    }
+
+    return parts;
+}
+
+// Render chord line with time signatures - processes time sigs first, then formatting
+function renderChordLineWithTimeSignatures(text: string): React.ReactNode[] {
+    const parts: React.ReactNode[] = [];
+    let remaining = text;
+    let key = 0;
+
+    // Match time signatures: 1 or 2 digit numbers separated by / 
+    // Only need to check it's not preceded by a chord letter (to avoid matching Bb/d)
+    // No need to check what follows - 2/4D is "2/4 time sig + D chord", not a chord
+    const timeSignaturePattern = /(?<![A-Ga-g#b])(\d{1,2})\/(\d{1,2})/;
+
+    while (remaining.length > 0) {
+        const match = remaining.match(timeSignaturePattern);
+
+        if (match && match.index !== undefined) {
+            // Add text before the match (with formatting)
+            if (match.index > 0) {
+                const beforeText = remaining.substring(0, match.index);
+                parts.push(...renderWithFormatting(beforeText).map((node, i) =>
+                    React.isValidElement(node) ? React.cloneElement(node, { key: `before-${key}-${i}` }) : node
+                ));
+                key++;
+            }
+
+            // Add the time signature
+            parts.push(
+                <TimeSignature key={`ts-${key++}`} top={match[1]} bottom={match[2]} />
+            );
+
+            remaining = remaining.substring(match.index + match[0].length);
+        } else {
+            // No more time signatures, process remaining for formatting
+            parts.push(...renderWithFormatting(remaining).map((node, i) =>
+                React.isValidElement(node) ? React.cloneElement(node, { key: `end-${key}-${i}` }) : node
+            ));
+            break;
+        }
+    }
+
+    return parts;
+}
+
 // Render text with formatting markers: _underline_ and ~smaller~
 // Supports nested underlines within smaller text: ~When _you_ look~
 function renderWithFormatting(text: string): React.ReactNode[] {
@@ -201,7 +290,7 @@ function SectionRenderer({ section, fontSize }: { section: Section; fontSize?: n
                             className="text-blue-600 dark:text-blue-400 font-semibold whitespace-pre"
                             style={style}
                         >
-                            {renderWithFormatting(line.content)}
+                            {renderChordLineWithTimeSignatures(line.content)}
                         </div>
                     );
                 }
