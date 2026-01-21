@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Image, Upload, X, Loader2 } from "lucide-react";
+import { FileText, Image, Upload, X, Loader2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { ChordSheetEditor } from "@/components/chord-sheet-editor";
 import { cn } from "@/lib/utils";
@@ -92,6 +92,10 @@ export function EditSongDialog({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
     const [confirmingCancel, setConfirmingCancel] = useState(false);
+
+    // Collapsible sections state
+    const [isLyricsExpanded, setIsLyricsExpanded] = useState(true);
+    const [isMusicExpanded, setIsMusicExpanded] = useState(true);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -395,120 +399,138 @@ export function EditSongDialog({
 
                     {/* Lyrics */}
                     <div className="space-y-2">
-                        <Label htmlFor="edit-lyrics">Lyrics</Label>
-                        <Textarea
-                            id="edit-lyrics"
-                            value={lyrics}
-                            onChange={(e) => setLyrics(e.target.value)}
-                            placeholder="Paste or type the lyrics here..."
-                            className="min-h-[150px] font-mono text-sm"
-                        />
+                        <button
+                            type="button"
+                            onClick={() => setIsLyricsExpanded(!isLyricsExpanded)}
+                            className="flex items-center gap-2 text-sm font-medium cursor-pointer hover:text-foreground/80 transition-colors"
+                        >
+                            <ChevronDown className={cn("h-4 w-4 transition-transform", !isLyricsExpanded && "-rotate-90")} />
+                            Lyrics
+                        </button>
+                        {isLyricsExpanded && (
+                            <Textarea
+                                id="edit-lyrics"
+                                value={lyrics}
+                                onChange={(e) => setLyrics(e.target.value)}
+                                placeholder="Paste or type the lyrics here..."
+                                className="min-h-[150px] font-mono text-sm"
+                            />
+                        )}
                     </div>
 
                     {/* Music */}
                     <div className="space-y-3">
-                        <Label>Music Sheet</Label>
-                        <Tabs value={musicType} onValueChange={(v) => setMusicType(v as "file" | "text")}>
-                            <TabsList className="grid w-full grid-cols-2">
-                                <TabsTrigger value="file" className="gap-2">
-                                    <Upload className="h-4 w-4" />
-                                    Upload File
-                                </TabsTrigger>
-                                <TabsTrigger value="text" className="gap-2">
-                                    <FileText className="h-4 w-4" />
-                                    Type Text
-                                </TabsTrigger>
-                            </TabsList>
+                        <button
+                            type="button"
+                            onClick={() => setIsMusicExpanded(!isMusicExpanded)}
+                            className="flex items-center gap-2 text-sm font-medium cursor-pointer hover:text-foreground/80 transition-colors"
+                        >
+                            <ChevronDown className={cn("h-4 w-4 transition-transform", !isMusicExpanded && "-rotate-90")} />
+                            Music Sheet
+                        </button>
+                        {isMusicExpanded && (
+                            <Tabs value={musicType} onValueChange={(v) => setMusicType(v as "file" | "text")}>
+                                <TabsList className="grid w-full grid-cols-2">
+                                    <TabsTrigger value="file" className="gap-2">
+                                        <Upload className="h-4 w-4" />
+                                        Upload File
+                                    </TabsTrigger>
+                                    <TabsTrigger value="text" className="gap-2">
+                                        <FileText className="h-4 w-4" />
+                                        Type Text
+                                    </TabsTrigger>
+                                </TabsList>
 
-                            <TabsContent value="file" className="mt-3">
-                                <div
-                                    className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
-                                    onClick={handleFileUploadClick}
-                                >
-                                    {musicFile || nativeFileData ? (
-                                        <div className="flex items-center justify-center gap-3">
-                                            {(musicFile?.type === "application/pdf" || nativeFileData?.type === "pdf") ? (
-                                                <FileText className="h-8 w-8 text-primary" />
-                                            ) : (
-                                                <Image className="h-8 w-8 text-primary" />
-                                            )}
-                                            <div className="text-left">
-                                                <p className="font-medium text-sm">
-                                                    {musicFile?.name || nativeFileData?.name}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {musicFile
-                                                        ? `${(musicFile.size / 1024).toFixed(1)} KB (new file)`
-                                                        : "(new file)"}
-                                                </p>
+                                <TabsContent value="file" className="mt-3">
+                                    <div
+                                        className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                                        onClick={handleFileUploadClick}
+                                    >
+                                        {musicFile || nativeFileData ? (
+                                            <div className="flex items-center justify-center gap-3">
+                                                {(musicFile?.type === "application/pdf" || nativeFileData?.type === "pdf") ? (
+                                                    <FileText className="h-8 w-8 text-primary" />
+                                                ) : (
+                                                    <Image className="h-8 w-8 text-primary" />
+                                                )}
+                                                <div className="text-left">
+                                                    <p className="font-medium text-sm">
+                                                        {musicFile?.name || nativeFileData?.name}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {musicFile
+                                                            ? `${(musicFile.size / 1024).toFixed(1)} KB (new file)`
+                                                            : "(new file)"}
+                                                    </p>
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="ml-auto"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setMusicFile(null);
+                                                        setNativeFileData(null);
+                                                    }}
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
                                             </div>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                className="ml-auto"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setMusicFile(null);
-                                                    setNativeFileData(null);
-                                                }}
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    ) : keepExistingMusic && existingMusicFileName ? (
-                                        <div className="flex items-center justify-center gap-3">
-                                            {existingMusicType === "pdf" ? (
-                                                <FileText className="h-8 w-8 text-primary" />
-                                            ) : (
-                                                <Image className="h-8 w-8 text-primary" />
-                                            )}
-                                            <div className="text-left">
-                                                <p className="font-medium text-sm">{existingMusicFileName}</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Current file - click to replace
-                                                </p>
+                                        ) : keepExistingMusic && existingMusicFileName ? (
+                                            <div className="flex items-center justify-center gap-3">
+                                                {existingMusicType === "pdf" ? (
+                                                    <FileText className="h-8 w-8 text-primary" />
+                                                ) : (
+                                                    <Image className="h-8 w-8 text-primary" />
+                                                )}
+                                                <div className="text-left">
+                                                    <p className="font-medium text-sm">{existingMusicFileName}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Current file - click to replace
+                                                    </p>
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="ml-auto"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleRemoveExistingMusic();
+                                                    }}
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
                                             </div>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                className="ml-auto"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleRemoveExistingMusic();
-                                                }}
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                                            <p className="text-sm text-muted-foreground">
-                                                Click to upload PDF or image
-                                            </p>
-                                        </>
-                                    )}
-                                </div>
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept=".pdf,image/*"
-                                    onChange={handleFileChange}
-                                    className="hidden"
-                                />
-                            </TabsContent>
+                                        ) : (
+                                            <>
+                                                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                                                <p className="text-sm text-muted-foreground">
+                                                    Click to upload PDF or image
+                                                </p>
+                                            </>
+                                        )}
+                                    </div>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept=".pdf,image/*"
+                                        onChange={handleFileChange}
+                                        className="hidden"
+                                    />
+                                </TabsContent>
 
-                            <TabsContent value="text" className="mt-3">
-                                <ChordSheetEditor
-                                    value={musicText}
-                                    onChange={setMusicText}
-                                    minHeight="250px"
-                                    onFullscreenChange={setIsEditorFullscreen}
-                                />
-                            </TabsContent>
-                        </Tabs>
+                                <TabsContent value="text" className="mt-3">
+                                    <ChordSheetEditor
+                                        value={musicText}
+                                        onChange={setMusicText}
+                                        minHeight="250px"
+                                        onFullscreenChange={setIsEditorFullscreen}
+                                    />
+                                </TabsContent>
+                            </Tabs>
+                        )}
                     </div>
 
                     {/* Submit */}
