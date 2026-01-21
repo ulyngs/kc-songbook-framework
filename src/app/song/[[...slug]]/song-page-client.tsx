@@ -50,6 +50,8 @@ import { SonglistSheet } from "@/components/songlist-sheet";
 import { useTheme } from "next-themes";
 import ReactMarkdown from "react-markdown";
 import { SeamlessPdfViewer } from "@/components/seamless-pdf-viewer";
+import { ChordSheetRenderer } from "@/components/chord-sheet-renderer";
+import { ChordSheetEditor } from "@/components/chord-sheet-editor";
 
 type ViewMode = "lyrics" | "music";
 
@@ -1023,26 +1025,12 @@ export default function SongPageClient() {
                     <div className="flex-1 overflow-hidden flex flex-col">
                       {isEditingMusic && song.musicType === "text" ? (
                         <div className="flex flex-col h-full">
-                          <div className="flex-1 p-4 overflow-y-auto">
-                            <Textarea
+                          <div className="flex-1 overflow-hidden">
+                            <ChordSheetEditor
                               value={editedMusicText}
-                              onChange={(e) => setEditedMusicText(e.target.value)}
-                              onKeyDown={(e) => {
-                                // Allow Tab key to insert a tab character
-                                if (e.key === "Tab") {
-                                  e.preventDefault();
-                                  const target = e.target as HTMLTextAreaElement;
-                                  const start = target.selectionStart;
-                                  const end = target.selectionEnd;
-                                  const newValue = editedMusicText.substring(0, start) + "\t" + editedMusicText.substring(end);
-                                  setEditedMusicText(newValue);
-                                  setTimeout(() => {
-                                    target.selectionStart = target.selectionEnd = start + 1;
-                                  }, 0);
-                                }
-                              }}
-                              className="min-h-full font-mono text-sm w-full resize-none border-0 focus-visible:ring-0 shadow-none bg-transparent"
-                              placeholder="Enter chord charts, tabs, or notation..."
+                              onChange={setEditedMusicText}
+                              className="h-full border-0 rounded-none"
+                              minHeight="100%"
                             />
                           </div>
                           {/* Edit controls */}
@@ -1355,12 +1343,39 @@ function MusicViewer({
   onZoomChange?: (zoom: number) => void;
   scrollRef?: React.RefObject<HTMLDivElement | null>;
 }) {
+  // Handle pinch-to-zoom for text music
+  const textMusicContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (type !== "text" || !textMusicContainerRef.current || !onZoomChange) return;
+
+    const node = textMusicContainerRef.current;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const currentZoom = zoom || 1;
+        const zoomFactor = 1 - e.deltaY * 0.01;
+        const newZoom = Math.max(0.5, Math.min(5, currentZoom * zoomFactor));
+        onZoomChange(newZoom);
+      }
+    };
+
+    node.addEventListener("wheel", handleWheel, { passive: false });
+
+    return () => {
+      node.removeEventListener("wheel", handleWheel);
+    };
+  }, [type, zoom, onZoomChange]);
+
   if (type === "text") {
+    // Base font size is 14px, zoom is a decimal (e.g., 1.1 = 110%)
+    const fontSize = zoom ? Math.round(14 * zoom) : 14;
     return (
-      <div className="bg-card rounded-xl border border-border/50 p-6 sm:p-8 shadow-sm">
-        <pre className="font-mono text-sm sm:text-base whitespace-pre-wrap overflow-x-auto">
-          {data}
-        </pre>
+      <div ref={textMusicContainerRef} className="flex justify-center py-8 px-4">
+        <div className="bg-card rounded-xl border border-border/50 p-6 sm:p-8 shadow-sm overflow-auto">
+          <ChordSheetRenderer text={data} fontSize={fontSize} />
+        </div>
       </div>
     );
   }

@@ -17,6 +17,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Image, Upload, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { ChordSheetEditor } from "@/components/chord-sheet-editor";
+import { cn } from "@/lib/utils";
 
 // Check if we're running in Tauri (native app)
 const isTauri = () => {
@@ -76,6 +78,7 @@ export function EditSongDialog({
     const [title, setTitle] = useState("");
     const [artist, setArtist] = useState("");
     const [songKey, setSongKey] = useState("");
+    const [tempo, setTempo] = useState("");
     const [lyrics, setLyrics] = useState("");
     const [isXmas, setIsXmas] = useState(false);
     const [musicType, setMusicType] = useState<"file" | "text">("file");
@@ -87,15 +90,75 @@ export function EditSongDialog({
     // State for native file picker (Tauri/iOS)
     const [nativeFileData, setNativeFileData] = useState<{ name: string; data: string; type: 'pdf' | 'image' } | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
+    const [confirmingCancel, setConfirmingCancel] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Initialize form when song changes
+    const STORAGE_KEY = 'edit-song-dialog-draft';
+
+    // Save draft to localStorage whenever form state changes
+    const saveDraft = useCallback(() => {
+        if (song && open) {
+            const draft = {
+                songId: song.id,
+                title,
+                artist,
+                songKey,
+                tempo,
+                lyrics,
+                isXmas,
+                musicType,
+                musicText,
+                keepExistingMusic,
+                isEditorFullscreen,
+                timestamp: Date.now(),
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+        }
+    }, [song, open, title, artist, songKey, tempo, lyrics, isXmas, musicType, musicText, keepExistingMusic, isEditorFullscreen]);
+
+    // Clear draft from localStorage
+    const clearDraft = useCallback(() => {
+        localStorage.removeItem(STORAGE_KEY);
+    }, []);
+
+    // Check for existing draft on mount
     useEffect(() => {
         if (song && open) {
+            const savedDraft = localStorage.getItem(STORAGE_KEY);
+            if (savedDraft) {
+                try {
+                    const draft = JSON.parse(savedDraft);
+                    // Only restore if it's for the same song and less than 24 hours old
+                    if (draft.songId === song.id && Date.now() - draft.timestamp < 24 * 60 * 60 * 1000) {
+                        setTitle(draft.title || song.title);
+                        setArtist(draft.artist || song.artist);
+                        setSongKey(draft.songKey || song.key || "");
+                        setTempo(draft.tempo || song.tempo || "");
+                        setLyrics(draft.lyrics || song.lyrics || "");
+                        setIsXmas(draft.isXmas ?? song.isXmas ?? false);
+                        setMusicType(draft.musicType || (song.musicType === "text" ? "text" : "file"));
+                        setMusicText(draft.musicText || song.musicData || "");
+                        setKeepExistingMusic(draft.keepExistingMusic ?? !!song.musicData);
+                        setIsEditorFullscreen(draft.isEditorFullscreen ?? false);
+                        // Set existing music info
+                        setExistingMusicType(song.musicType);
+                        setExistingMusicFileName(song.musicFileName);
+                        setMusicFile(null);
+                        return; // Don't run the default initialization
+                    }
+                } catch (e) {
+                    console.error("Failed to restore draft:", e);
+                    clearDraft();
+                }
+            }
+
+            // Default initialization (no draft or different song)
             setTitle(song.title);
             setArtist(song.artist);
             setSongKey(song.key || "");
+            setTempo(song.tempo || "");
             setLyrics(song.lyrics || "");
             setIsXmas(song.isXmas || false);
             setExistingMusicType(song.musicType);
@@ -111,7 +174,44 @@ export function EditSongDialog({
             }
             setMusicFile(null);
         }
-    }, [song, open]);
+    }, [song, open, clearDraft]);
+
+    // Save draft whenever form state changes
+    useEffect(() => {
+        if (song && open) {
+            saveDraft();
+        }
+    }, [song, open, title, artist, songKey, tempo, lyrics, isXmas, musicType, musicText, keepExistingMusic, isEditorFullscreen, saveDraft]);
+
+    // Check if there are unsaved changes
+    const hasUnsavedChanges = useCallback(() => {
+        if (!song) return false;
+        return (
+            title !== song.title ||
+            artist !== song.artist ||
+            songKey !== (song.key || "") ||
+            tempo !== (song.tempo || "") ||
+            lyrics !== (song.lyrics || "") ||
+            isXmas !== (song.isXmas || false) ||
+            (musicType === "text" && musicText !== (song.musicData || "")) ||
+            musicFile !== null ||
+            nativeFileData !== null ||
+            (!keepExistingMusic && song.musicData)
+        );
+    }, [song, title, artist, songKey, tempo, lyrics, isXmas, musicType, musicText, musicFile, nativeFileData, keepExistingMusic]);
+
+    // Handle cancel with confirmation if there are unsaved changes
+    const handleCancel = useCallback(() => {
+        if (hasUnsavedChanges() && !confirmingCancel) {
+            setConfirmingCancel(true);
+            // Reset after 2 seconds if not clicked again
+            setTimeout(() => setConfirmingCancel(false), 2000);
+        } else {
+            setConfirmingCancel(false);
+            clearDraft();
+            onOpenChange(false);
+        }
+    }, [hasUnsavedChanges, confirmingCancel, clearDraft, onOpenChange]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -158,6 +258,7 @@ export function EditSongDialog({
                 title: title.trim(),
                 artist: artist.trim(),
                 key: songKey.trim() || undefined,
+                tempo: tempo.trim() || undefined,
                 lyrics: lyrics.trim() || undefined,
                 isXmas,
             };
@@ -195,6 +296,7 @@ export function EditSongDialog({
 
             await updateSong(song.id, updates);
             toast.success(`"${title}" updated!`);
+            clearDraft(); // Clear saved draft after successful save
             onSongUpdated();
             onOpenChange(false);
         } catch (error) {
@@ -214,7 +316,15 @@ export function EditSongDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent
+                className={cn(
+                    "overflow-y-auto transition-all duration-200",
+                    isEditorFullscreen
+                        ? "!max-w-[100vw] !w-[100vw] !max-h-[100vh] !h-[100vh] !rounded-none !translate-x-[-50%] !translate-y-[-50%]"
+                        : cn("max-h-[90vh]", musicType === "text" ? "sm:max-w-5xl" : "sm:max-w-2xl")
+                )}
+                resizable={musicType === "text" && !isEditorFullscreen}
+            >
                 <DialogHeader>
                     <DialogTitle className="font-display text-xl">Edit Song</DialogTitle>
                     <DialogDescription>
@@ -255,6 +365,18 @@ export function EditSongDialog({
                             value={songKey}
                             onChange={(e) => setSongKey(e.target.value)}
                             placeholder="e.g. Bb, Am, G#m"
+                            className="max-w-32"
+                        />
+                    </div>
+
+                    {/* Tempo */}
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-tempo">Tempo (optional)</Label>
+                        <Input
+                            id="edit-tempo"
+                            value={tempo}
+                            onChange={(e) => setTempo(e.target.value)}
+                            placeholder="e.g. 80 BPM"
                             className="max-w-32"
                         />
                     </div>
@@ -379,26 +501,11 @@ export function EditSongDialog({
                             </TabsContent>
 
                             <TabsContent value="text" className="mt-3">
-                                <Textarea
+                                <ChordSheetEditor
                                     value={musicText}
-                                    onChange={(e) => setMusicText(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        // Allow Tab key to insert a tab character instead of moving focus
-                                        if (e.key === "Tab") {
-                                            e.preventDefault();
-                                            const target = e.target as HTMLTextAreaElement;
-                                            const start = target.selectionStart;
-                                            const end = target.selectionEnd;
-                                            const newValue = musicText.substring(0, start) + "\t" + musicText.substring(end);
-                                            setMusicText(newValue);
-                                            // Move cursor after the tab
-                                            setTimeout(() => {
-                                                target.selectionStart = target.selectionEnd = start + 1;
-                                            }, 0);
-                                        }
-                                    }}
-                                    placeholder="Type chord charts, tabs, or notation..."
-                                    className="min-h-[150px] font-mono text-sm"
+                                    onChange={setMusicText}
+                                    minHeight="250px"
+                                    onFullscreenChange={setIsEditorFullscreen}
                                 />
                             </TabsContent>
                         </Tabs>
@@ -408,10 +515,18 @@ export function EditSongDialog({
                     <div className="flex justify-end gap-3 pt-2">
                         <Button
                             type="button"
-                            variant="outline"
-                            onClick={() => onOpenChange(false)}
+                            variant={confirmingCancel ? "destructive" : "outline"}
+                            onClick={handleCancel}
+                            className={confirmingCancel ? "flex-col h-auto py-2" : ""}
                         >
-                            Cancel
+                            {confirmingCancel ? (
+                                <>
+                                    <span>Are you sure?</span>
+                                    <span className="text-xs opacity-80">Unsaved changes will be lost</span>
+                                </>
+                            ) : (
+                                "Cancel"
+                            )}
                         </Button>
                         <Button type="submit" disabled={isSubmitting}>
                             {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

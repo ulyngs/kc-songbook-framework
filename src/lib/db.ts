@@ -5,6 +5,7 @@ export interface Song {
   title: string;
   artist: string;
   key?: string;
+  tempo?: string;
   isMovie?: boolean;
   isXmas?: boolean;
   isFavourite?: boolean;
@@ -66,7 +67,7 @@ export async function addSong(song: Omit<Song, 'id' | 'createdAt' | 'updatedAt'>
   const db = await getDB();
   const now = Date.now();
   const id = generateSlug(song.title);
-  
+
   const newSong: Song = {
     ...song,
     id,
@@ -82,7 +83,7 @@ export async function addSong(song: Omit<Song, 'id' | 'createdAt' | 'updatedAt'>
 export async function updateSong(id: string, updates: Partial<Song>): Promise<Song | undefined> {
   const db = await getDB();
   const existing = await db.get(STORE_NAME, id);
-  
+
   if (!existing) return undefined;
 
   const updated: Song = {
@@ -107,7 +108,7 @@ export async function bulkAddSongs(songs: Omit<Song, 'id' | 'createdAt' | 'updat
   const db = await getDB();
   const now = Date.now();
   const tx = db.transaction(STORE_NAME, 'readwrite');
-  
+
   const newSongs: Song[] = songs.map((song, index) => ({
     ...song,
     id: generateSlug(song.title),
@@ -127,8 +128,8 @@ export async function bulkAddSongs(songs: Omit<Song, 'id' | 'createdAt' | 'updat
 export async function searchSongs(query: string): Promise<Song[]> {
   const songs = await getAllSongs();
   const lowerQuery = query.toLowerCase();
-  
-  return songs.filter(song => 
+
+  return songs.filter(song =>
     song.title.toLowerCase().includes(lowerQuery) ||
     song.artist.toLowerCase().includes(lowerQuery)
   );
@@ -175,7 +176,7 @@ export async function importSongs(json: string): Promise<number> {
   const songs: Song[] = JSON.parse(json);
   const db = await getDB();
   const tx = db.transaction(STORE_NAME, 'readwrite');
-  
+
   await Promise.all([
     ...songs.map(song => tx.store.put(song)),
     tx.done,

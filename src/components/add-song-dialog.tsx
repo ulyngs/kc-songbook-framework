@@ -17,6 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Image, Upload, X, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { importKCCollection } from "@/lib/kc-collection";
+import { ChordSheetEditor } from "@/components/chord-sheet-editor";
+import { cn } from "@/lib/utils";
 
 // Check if we're running in Tauri (native app)
 const isTauri = () => {
@@ -82,6 +84,7 @@ export function AddSongDialog({
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [songKey, setSongKey] = useState("");
+  const [tempo, setTempo] = useState("");
   const [lyrics, setLyrics] = useState("");
   const [musicType, setMusicType] = useState<"file" | "text">("file");
   const [musicText, setMusicText] = useState("");
@@ -94,6 +97,7 @@ export function AddSongDialog({
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [password, setPassword] = useState("");
   const [isImporting, setIsImporting] = useState(false);
+  const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
 
   // Reset or set mode when dialog opens
   useEffect(() => {
@@ -113,6 +117,7 @@ export function AddSongDialog({
     setTitle("");
     setArtist("");
     setSongKey("");
+    setTempo("");
     setLyrics("");
     setMusicType("file");
     setMusicText("");
@@ -186,6 +191,7 @@ export function AddSongDialog({
         title: title.trim(),
         artist: artist.trim(),
         key: songKey.trim() || undefined,
+        tempo: tempo.trim() || undefined,
         lyrics: lyrics.trim() || undefined,
         musicType: resolvedMusicType,
         musicData,
@@ -222,7 +228,15 @@ export function AddSongDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className={cn(
+          "overflow-y-auto transition-all duration-200",
+          isEditorFullscreen
+            ? "!max-w-[100vw] !w-[100vw] !max-h-[100vh] !h-[100vh] !rounded-none !translate-x-[-50%] !translate-y-[-50%]"
+            : cn("max-h-[90vh]", musicType === "text" ? "sm:max-w-5xl" : "sm:max-w-2xl")
+        )}
+        resizable={musicType === "text" && !isEditorFullscreen}
+      >
         <DialogHeader>
           <DialogTitle className="font-display text-xl">
             {showPasswordInput ? "Unlock Collection" : "Add New Song"}
@@ -299,6 +313,18 @@ export function AddSongDialog({
                 value={songKey}
                 onChange={(e) => setSongKey(e.target.value)}
                 placeholder="e.g. Bb, Am, G#m"
+                className="max-w-32"
+              />
+            </div>
+
+            {/* Tempo */}
+            <div className="space-y-2">
+              <Label htmlFor="tempo">Tempo (optional)</Label>
+              <Input
+                id="tempo"
+                value={tempo}
+                onChange={(e) => setTempo(e.target.value)}
+                placeholder="e.g. 80 BPM"
                 className="max-w-32"
               />
             </div>
@@ -385,26 +411,11 @@ export function AddSongDialog({
                 </TabsContent>
 
                 <TabsContent value="text" className="mt-3">
-                  <Textarea
+                  <ChordSheetEditor
                     value={musicText}
-                    onChange={(e) => setMusicText(e.target.value)}
-                    onKeyDown={(e) => {
-                      // Allow Tab key to insert a tab character instead of moving focus
-                      if (e.key === "Tab") {
-                        e.preventDefault();
-                        const target = e.target as HTMLTextAreaElement;
-                        const start = target.selectionStart;
-                        const end = target.selectionEnd;
-                        const newValue = musicText.substring(0, start) + "\t" + musicText.substring(end);
-                        setMusicText(newValue);
-                        // Move cursor after the tab
-                        setTimeout(() => {
-                          target.selectionStart = target.selectionEnd = start + 1;
-                        }, 0);
-                      }
-                    }}
-                    placeholder="Type chord charts, tabs, or notation..."
-                    className="min-h-[150px] font-mono text-sm"
+                    onChange={setMusicText}
+                    minHeight="250px"
+                    onFullscreenChange={setIsEditorFullscreen}
                   />
                 </TabsContent>
               </Tabs>
