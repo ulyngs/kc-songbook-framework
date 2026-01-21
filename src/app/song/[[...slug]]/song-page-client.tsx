@@ -1456,8 +1456,8 @@ function MusicViewer({
     // Base font size is 14px, zoom is a decimal (e.g., 1.1 = 110%)
     const fontSize = zoom ? Math.round(14 * zoom) : 14;
     return (
-      <div ref={textMusicContainerRef} className="flex justify-center py-8 px-4">
-        <div className="relative bg-card rounded-xl border border-border/50 p-6 sm:p-8 shadow-sm overflow-auto">
+      <div ref={textMusicContainerRef} className="flex justify-center py-8 px-4 h-full overflow-auto">
+        <div className="relative bg-card rounded-xl border border-border/50 p-6 sm:p-8 shadow-sm h-fit">
           {/* Tempo badge in top-right corner - clickable for metronome if numeric */}
           {tempo && (() => {
             const hasNumericBpm = /\d+/.test(tempo);

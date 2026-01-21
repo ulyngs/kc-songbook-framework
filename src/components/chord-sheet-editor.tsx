@@ -30,8 +30,11 @@ export function ChordSheetEditor({
 }: ChordSheetEditorProps) {
     const [viewMode, setViewMode] = useState<ViewMode>("split");
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [splitPosition, setSplitPosition] = useState(50); // percentage for left pane
+    const [isDragging, setIsDragging] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const previewRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const toggleFullscreen = useCallback(() => {
         const newState = !isFullscreen;
@@ -71,6 +74,29 @@ export function ChordSheetEditor({
             preview.scrollTop = scrollRatio * (preview.scrollHeight - preview.clientHeight);
         }
     }, [viewMode]);
+
+    // Handle divider drag for resizing split view
+    const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+
+        const handleMouseMove = (moveEvent: MouseEvent) => {
+            if (!containerRef.current) return;
+            const rect = containerRef.current.getBoundingClientRect();
+            const newPosition = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+            // Clamp between 20% and 80%
+            setSplitPosition(Math.max(20, Math.min(80, newPosition)));
+        };
+
+        const handleMouseUp = () => {
+            setIsDragging(false);
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    }, []);
 
     const editorContent = (
         <>
@@ -134,9 +160,11 @@ export function ChordSheetEditor({
 
             {/* Editor/Preview area */}
             <div
+                ref={containerRef}
                 className={cn(
                     "flex flex-1",
-                    viewMode === "split" ? "flex-row" : "flex-col"
+                    viewMode === "split" ? "flex-row" : "flex-col",
+                    isDragging && "select-none"
                 )}
                 style={{ minHeight: isFullscreen ? undefined : minHeight }}
             >
@@ -144,9 +172,9 @@ export function ChordSheetEditor({
                 {(viewMode === "edit" || viewMode === "split") && (
                     <div
                         className={cn(
-                            "flex-1",
-                            viewMode === "split" && "border-r"
+                            viewMode !== "split" && "flex-1"
                         )}
+                        style={viewMode === "split" ? { flex: `0 0 ${splitPosition}%` } : undefined}
                     >
                         <textarea
                             ref={textareaRef}
@@ -170,14 +198,29 @@ export function ChordSheetEditor({
                     </div>
                 )}
 
+                {/* Draggable divider */}
+                {viewMode === "split" && (
+                    <div
+                        className={cn(
+                            "w-1 bg-border hover:bg-primary/50 cursor-col-resize transition-colors flex-shrink-0",
+                            isDragging && "bg-primary/50"
+                        )}
+                        onMouseDown={handleDividerMouseDown}
+                    />
+                )}
+
                 {/* Preview pane */}
                 {(viewMode === "preview" || viewMode === "split") && (
                     <div
                         ref={previewRef}
                         className={cn(
-                            "flex-1 p-4 overflow-auto"
+                            "p-4 overflow-auto",
+                            viewMode !== "split" && "flex-1",
+                            viewMode === "split" && "flex-1"
                         )}
-                        style={{ minHeight: isFullscreen ? "100%" : (viewMode === "split" ? "100%" : minHeight) }}
+                        style={{
+                            minHeight: isFullscreen ? "100%" : (viewMode === "split" ? "100%" : minHeight),
+                        }}
                     >
                         {value ? (
                             <ChordSheetRenderer text={value} fontSize={fontSize} />

@@ -60,7 +60,15 @@ function parseText(text: string): Section[] {
         const line = lines[i];
         const headerInfo = isSectionHeader(line);
 
-        if (headerInfo.isHeader) {
+        // Check for border end marker [/]
+        if (line.trim() === "[/]") {
+            // Save current section if it has content
+            if (currentSection.lines.length > 0 || currentSection.label) {
+                sections.push(currentSection);
+            }
+            // Start new section without border
+            currentSection = { hasBorder: false, lines: [] };
+        } else if (headerInfo.isHeader) {
             // Save current section if it has content
             if (currentSection.lines.length > 0 || currentSection.label) {
                 sections.push(currentSection);
@@ -98,41 +106,77 @@ function parseText(text: string): Section[] {
     return sections;
 }
 
-// Render underlines within text
-function renderUnderlines(text: string, keyPrefix: string = ""): React.ReactNode[] {
+// Render inline formatting: **bold**, *italics*, _underline_
+// Process bold first (to avoid **text** matching * twice), then italics, then underline
+function renderInlineFormatting(text: string, keyPrefix: string = ""): React.ReactNode[] {
     const parts: React.ReactNode[] = [];
     let remaining = text;
     let key = 0;
 
+    // Combined pattern: **bold** or *italics* or _underline_
+    // Process in order: bold first (greedy), then italics, then underline
+    const boldPattern = /\*\*([^*]+)\*\*/;
+    const italicsPattern = /\*([^*]+)\*/;
     const underlinePattern = /_([^_]+)_/;
 
     while (remaining.length > 0) {
-        const match = remaining.match(underlinePattern);
+        // Try to find the first match of any pattern
+        const boldMatch = remaining.match(boldPattern);
+        const italicsMatch = remaining.match(italicsPattern);
+        const underlineMatch = remaining.match(underlinePattern);
 
-        if (match && match.index !== undefined) {
-            // Add text before the match
-            if (match.index > 0) {
-                parts.push(
-                    <span key={`${keyPrefix}${key++}`}>{remaining.substring(0, match.index)}</span>
-                );
-            }
+        // Find which match comes first
+        const matches = [
+            { type: 'bold', match: boldMatch, index: boldMatch?.index ?? Infinity },
+            { type: 'italics', match: italicsMatch, index: italicsMatch?.index ?? Infinity },
+            { type: 'underline', match: underlineMatch, index: underlineMatch?.index ?? Infinity },
+        ].filter(m => m.match !== null).sort((a, b) => a.index - b.index);
 
-            // Add the underlined text
+        if (matches.length === 0) {
+            // No more matches, add remaining text
+            parts.push(remaining);
+            break;
+        }
+
+        const firstMatch = matches[0];
+        const match = firstMatch.match!;
+        const matchIndex = match.index!;
+
+        // Add text before the match
+        if (matchIndex > 0) {
+            parts.push(remaining.substring(0, matchIndex));
+        }
+
+        // Add the formatted text
+        if (firstMatch.type === 'bold') {
             parts.push(
-                <span key={`${keyPrefix}${key++}`} className="underline decoration-2 underline-offset-2">
+                <strong key={`${keyPrefix}bold-${key++}`} className="font-bold">
+                    {match[1]}
+                </strong>
+            );
+        } else if (firstMatch.type === 'italics') {
+            parts.push(
+                <em key={`${keyPrefix}italic-${key++}`} className="italic">
+                    {match[1]}
+                </em>
+            );
+        } else {
+            parts.push(
+                <span key={`${keyPrefix}underline-${key++}`} className="underline decoration-2 underline-offset-2">
                     {match[1]}
                 </span>
             );
-
-            remaining = remaining.substring(match.index + match[0].length);
-        } else {
-            // No more matches, add remaining text
-            parts.push(<span key={`${keyPrefix}${key++}`}>{remaining}</span>);
-            break;
         }
+
+        remaining = remaining.substring(matchIndex + match[0].length);
     }
 
     return parts;
+}
+
+// Legacy function for backward compatibility
+function renderUnderlines(text: string, keyPrefix: string = ""): React.ReactNode[] {
+    return renderInlineFormatting(text, keyPrefix);
 }
 
 // Time signature component - renders as stacked numbers
@@ -197,12 +241,10 @@ function renderChordLineWithTimeSignatures(text: string): React.ReactNode[] {
         const match = remaining.match(timeSignaturePattern);
 
         if (match && match.index !== undefined) {
-            // Add text before the match (with formatting)
+            // Add text before the match (with chord formatting)
             if (match.index > 0) {
                 const beforeText = remaining.substring(0, match.index);
-                parts.push(...renderWithFormatting(beforeText).map((node, i) =>
-                    React.isValidElement(node) ? React.cloneElement(node, { key: `before-${key}-${i}` }) : node
-                ));
+                parts.push(...renderChordsWithSuperscript(beforeText, `before-${key}`));
                 key++;
             }
 
@@ -213,12 +255,64 @@ function renderChordLineWithTimeSignatures(text: string): React.ReactNode[] {
 
             remaining = remaining.substring(match.index + match[0].length);
         } else {
-            // No more time signatures, process remaining for formatting
-            parts.push(...renderWithFormatting(remaining).map((node, i) =>
-                React.isValidElement(node) ? React.cloneElement(node, { key: `end-${key}-${i}` }) : node
-            ));
+            // No more time signatures, process remaining for chord formatting
+            parts.push(...renderChordsWithSuperscript(remaining, `end-${key}`));
             break;
         }
+    }
+
+    return parts;
+}
+
+// Render chords with superscript suffixes (e.g., Asus4 -> A^sus4, Cmaj7 -> C^maj7)
+// Also processes inline formatting (**bold**, *italics*, _underline_) for non-chord text
+function renderChordsWithSuperscript(text: string, keyPrefix: string): React.ReactNode[] {
+    const parts: React.ReactNode[] = [];
+    let key = 0;
+
+    // Chord pattern: root note (A-G with optional # or b) followed by modifier
+    // We split into: root (letter + accidental + optional m for minor) and suffix (the rest)
+    const chordPattern = /([A-G][#b]?)(m(?!aj)|)(sus[24]?|maj7?|min7?|dim7?|aug|add\d+|7|9|11|13|6|M7|Δ7?)/g;
+
+    let lastIndex = 0;
+    let match;
+
+    while ((match = chordPattern.exec(text)) !== null) {
+        // Add text before this chord (if any) - with inline formatting
+        if (match.index > lastIndex) {
+            const beforeText = text.substring(lastIndex, match.index);
+            parts.push(...renderInlineFormatting(beforeText, `${keyPrefix}-before-${key++}-`));
+        }
+
+        const root = match[1] + match[2]; // e.g., "A" or "Am"
+        const suffix = match[3]; // e.g., "sus4", "maj7"
+        const fullChord = match[0]; // e.g., "Asus4"
+
+        // Render the full chord text but with the suffix styled as superscript
+        // We need to maintain the original character width for alignment
+        parts.push(
+            <span key={`${keyPrefix}-chord-${key++}`} className="relative inline">
+                {/* Invisible text to maintain spacing */}
+                <span className="invisible">{fullChord}</span>
+                {/* Visible overlay with superscript styling */}
+                <span className="absolute left-0 top-0">
+                    {root}
+                    <sup className="text-[0.65em] relative" style={{ top: '-0.3em' }}>{suffix}</sup>
+                </span>
+            </span>
+        );
+
+        lastIndex = match.index + match[0].length;
+    }
+
+    // Add any remaining text after the last chord - with inline formatting
+    if (lastIndex < text.length) {
+        parts.push(...renderInlineFormatting(text.substring(lastIndex), `${keyPrefix}-after-${key++}-`));
+    }
+
+    // If no chords found, process through inline formatting
+    if (parts.length === 0) {
+        return renderInlineFormatting(text, keyPrefix);
     }
 
     return parts;
@@ -247,7 +341,7 @@ function renderWithFormatting(text: string): React.ReactNode[] {
 
             // Add the smaller text block (with underline processing inside)
             parts.push(
-                <span key={`small-${key++}`} className="text-[0.75em]">
+                <span key={`small-${key++}`} className="text-[0.85em]">
                     {renderUnderlines(match[1], `inner-${key}-`)}
                 </span>
             );
@@ -279,15 +373,23 @@ function SectionRenderer({ section, fontSize }: { section: Section; fontSize?: n
                     return <div key={idx} className="h-4" />;
                 }
 
-                const style = {
+                const style: React.CSSProperties = {
                     fontSize: fontSize ? `${fontSize}px` : undefined,
+                    tabSize: 8,
                 };
+
+                // Check if this chord line is followed by a lyrics line
+                const nextLine = section.lines[idx + 1];
+                const isChordFollowedByLyrics = line.type === "chord" && nextLine && nextLine.type === "lyrics";
 
                 if (line.type === "chord") {
                     return (
                         <div
                             key={idx}
-                            className="text-blue-600 dark:text-blue-400 font-semibold whitespace-pre"
+                            className={cn(
+                                "text-blue-600 dark:text-blue-400 whitespace-pre font-mono",
+                                isChordFollowedByLyrics && "mb-[-0.15em]"
+                            )}
                             style={style}
                         >
                             {renderChordLineWithTimeSignatures(line.content)}
@@ -295,11 +397,18 @@ function SectionRenderer({ section, fontSize }: { section: Section; fontSize?: n
                     );
                 }
 
+                // Check if this lyrics line follows a chord line
+                const prevLine = section.lines[idx - 1];
+                const lyricsFollowsChord = line.type === "lyrics" && prevLine && prevLine.type === "chord";
+
                 // lyrics
                 return (
                     <div
                         key={idx}
-                        className="text-foreground whitespace-pre"
+                        className={cn(
+                            "text-foreground whitespace-pre font-mono",
+                            lyricsFollowsChord && "mb-0.5"
+                        )}
                         style={style}
                     >
                         {renderWithFormatting(line.content)}
