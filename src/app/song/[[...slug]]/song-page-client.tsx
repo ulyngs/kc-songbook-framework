@@ -1618,16 +1618,25 @@ function MusicViewer({
     // Parse data - could be single base64 or JSON array of base64 strings
     let imageSources: string[] = [];
     try {
-      if (data.startsWith('[')) {
-        // Multiple images stored as JSON array
-        imageSources = JSON.parse(data);
+      // Guard against null/undefined data
+      if (!data) {
+        imageSources = [];
+      } else if (data.startsWith('[') && data.endsWith(']')) {
+        // Only try to parse as JSON if it looks like a JSON array (starts with '[' and ends with ']')
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+          imageSources = parsed;
+        } else {
+          // Not a valid array of strings, treat as single image
+          imageSources = [data];
+        }
       } else {
         // Single image (backwards compatibility)
         imageSources = [data];
       }
     } catch {
       // Fallback to single image if parse fails
-      imageSources = [data];
+      imageSources = data ? [data] : [];
     }
 
     // Calculate width: at 100% zoom, image fits container (minus padding)

@@ -14,11 +14,29 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Image, Upload, X, Loader2, Lock, ChevronDown } from "lucide-react";
+import { FileText, Image, Upload, X, Loader2, Lock, ChevronDown, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { importKCCollection } from "@/lib/kc-collection";
 import { ChordSheetEditor } from "@/components/chord-sheet-editor";
 import { cn } from "@/lib/utils";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 // Check if we're running in Tauri (native app)
 const isTauri = () => {
@@ -82,6 +100,89 @@ async function openNativeFilePicker(): Promise<{ name: string; data: string; typ
   }
 }
 
+// Sortable page item component for drag-and-drop reordering
+interface SortablePageItemProps {
+  id: string;
+  pageData: string;
+  index: number;
+  isPdf: boolean;
+  onRemove: () => void;
+}
+
+function SortablePageItem({ id, pageData, index, isPdf, onRemove }: SortablePageItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+    opacity: isDragging ? 0.8 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "relative aspect-[3/4] rounded-lg overflow-hidden border bg-muted/30",
+        isDragging && "ring-2 ring-primary shadow-lg"
+      )}
+    >
+      {isPdf || !pageData ? (
+        <div className="w-full h-full flex items-center justify-center bg-muted">
+          <FileText className="h-8 w-8 text-muted-foreground" />
+        </div>
+      ) : (
+        <img
+          src={pageData}
+          alt={`Page ${index + 1}`}
+          className="w-full h-full object-cover pointer-events-none"
+          draggable={false}
+          onError={(e) => {
+            // Hide broken images
+            (e.target as HTMLImageElement).style.display = 'none';
+          }}
+        />
+      )}
+
+      {/* Drag handle - always visible */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-1 left-1 h-6 w-6 rounded bg-black/60 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none"
+      >
+        <GripVertical className="h-4 w-4 text-white" />
+      </div>
+
+      {/* Delete button - always visible */}
+      <Button
+        type="button"
+        variant="destructive"
+        size="icon"
+        className="absolute top-1 right-1 h-6 w-6"
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
+      >
+        <X className="h-3 w-3" />
+      </Button>
+
+      {/* Page number */}
+      <span className="absolute bottom-1 left-1 text-[10px] bg-black/50 text-white px-1 rounded">
+        {index + 1}
+      </span>
+    </div>
+  );
+}
+
 interface AddSongDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -102,9 +203,10 @@ export function AddSongDialog({
   const [lyrics, setLyrics] = useState("");
   const [musicType, setMusicType] = useState<"file" | "text">("file");
   const [musicText, setMusicText] = useState("");
-  const [musicFile, setMusicFile] = useState<File[]>([]);
-  // State for native file picker (Tauri/iOS) - array for multi-page support
-  const [nativeFileData, setNativeFileData] = useState<{ name: string; data: string; type: 'pdf' | 'image' }[]>([]);
+  // State for native file picker (Tauri/iOS) - array with stable IDs for drag-drop
+  const [nativeFileData, setNativeFileData] = useState<{ id: string; name: string; data: string; type: 'pdf' | 'image' }[]>([]);
+  // Store previews for new web files (as base64) with stable IDs
+  const [newFilePreviews, setNewFilePreviews] = useState<{ id: string; data: string; file: File }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // KC Collection Import State
@@ -116,6 +218,12 @@ export function AddSongDialog({
   // Collapsible sections state
   const [isLyricsExpanded, setIsLyricsExpanded] = useState(true);
   const [isMusicExpanded, setIsMusicExpanded] = useState(true);
+
+  // Client-side mounted check for dnd-kit
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Reset or set mode when dialog opens
   useEffect(() => {
@@ -131,6 +239,52 @@ export function AddSongDialog({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle drag end for reordering pages
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    // Handle reordering within native files
+    const nativeActiveIdx = nativeFileData.findIndex(f => f.id === activeId);
+    const nativeOverIdx = nativeFileData.findIndex(f => f.id === overId);
+
+    if (nativeActiveIdx !== -1 && nativeOverIdx !== -1) {
+      setNativeFileData(prev => arrayMove(prev, nativeActiveIdx, nativeOverIdx));
+      return;
+    }
+
+    // Handle reordering within web previews
+    const previewActiveIdx = newFilePreviews.findIndex(p => p.id === activeId);
+    const previewOverIdx = newFilePreviews.findIndex(p => p.id === overId);
+
+    if (previewActiveIdx !== -1 && previewOverIdx !== -1) {
+      setNewFilePreviews(prev => arrayMove(prev, previewActiveIdx, previewOverIdx));
+      return;
+    }
+  }, [nativeFileData, newFilePreviews]);
+
   const resetForm = () => {
     setTitle("");
     setArtist("");
@@ -139,16 +293,17 @@ export function AddSongDialog({
     setLyrics("");
     setMusicType("file");
     setMusicText("");
-    setMusicFile([]);
     setNativeFileData([]);
+    setNewFilePreviews([]);
     setShowPasswordInput(false);
     setPassword("");
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       const newFiles: File[] = [];
+      const newPreviews: { id: string; data: string; file: File }[] = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const type = getFileType(file);
@@ -156,10 +311,16 @@ export function AddSongDialog({
           toast.error(`${file.name}: Please upload PDF or image files only`);
           continue;
         }
-        newFiles.push(file);
+        // Generate base64 preview for images
+        if (type === 'image') {
+          const base64 = await fileToBase64(file);
+          newPreviews.push({ id: `new-${Date.now()}-${i}`, data: base64, file });
+        } else {
+          newPreviews.push({ id: `new-${Date.now()}-${i}`, data: '', file }); // PDF placeholder
+        }
       }
-      if (newFiles.length > 0) {
-        setMusicFile(prev => [...prev, ...newFiles]);
+      if (newPreviews.length > 0) {
+        setNewFilePreviews(prev => [...prev, ...newPreviews]);
         setNativeFileData([]); // Clear native files if web files selected
       }
     }
@@ -175,8 +336,8 @@ export function AddSongDialog({
       // Use native file picker on desktop Tauri only
       const result = await openNativeFilePicker();
       if (result) {
-        setNativeFileData(prev => [...prev, result]);
-        setMusicFile([]); // Clear web files if native file selected
+        setNativeFileData(prev => [...prev, { id: `native-${Date.now()}`, ...result }]);
+        setNewFilePreviews([]);
       }
     } else {
       // Use HTML file input on web and iOS (iOS handles camera via HTML input)
@@ -199,7 +360,7 @@ export function AddSongDialog({
       let resolvedMusicType: "pdf" | "image" | "text" | undefined;
       let musicFileName: string | undefined;
 
-      if (musicType === "file" && (musicFile.length > 0 || nativeFileData.length > 0)) {
+      if (musicType === "file" && (newFilePreviews.length > 0 || nativeFileData.length > 0)) {
         if (nativeFileData.length > 0) {
           // Use native file data (already base64)
           if (nativeFileData.length === 1) {
@@ -213,19 +374,20 @@ export function AddSongDialog({
             resolvedMusicType = nativeFileData[0].type; // All should be same type (image)
             musicFileName = `${nativeFileData.length} images`;
           }
-        } else if (musicFile.length > 0) {
+        } else if (newFilePreviews.length > 0) {
           // Use web files
-          if (musicFile.length === 1) {
+          if (newFilePreviews.length === 1) {
             // Single file - use existing format
-            musicData = await fileToBase64(musicFile[0]);
-            resolvedMusicType = getFileType(musicFile[0]) || undefined;
-            musicFileName = musicFile[0].name;
+            const preview = newFilePreviews[0];
+            musicData = preview.data || await fileToBase64(preview.file);
+            resolvedMusicType = getFileType(preview.file) || undefined;
+            musicFileName = preview.file.name;
           } else {
             // Multiple files - convert all to base64 and JSON encode
-            const base64Array = await Promise.all(musicFile.map(f => fileToBase64(f)));
+            const base64Array = await Promise.all(newFilePreviews.map(async p => p.data || await fileToBase64(p.file)));
             musicData = JSON.stringify(base64Array);
-            resolvedMusicType = getFileType(musicFile[0]) || undefined;
-            musicFileName = `${musicFile.length} images`;
+            resolvedMusicType = getFileType(newFilePreviews[0].file) || undefined;
+            musicFileName = `${newFilePreviews.length} images`;
           }
         }
       } else if (musicType === "text" && musicText.trim()) {
@@ -421,55 +583,54 @@ export function AddSongDialog({
 
                   <TabsContent value="file" className="mt-3">
                     <div className="space-y-3">
-                      {/* Show selected files */}
-                      {(musicFile.length > 0 || nativeFileData.length > 0) && (
-                        <div className="space-y-2">
-                          {musicFile.map((file, index) => (
-                            <div key={`web-${index}`} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
-                              {file.type?.includes("pdf") ? (
-                                <FileText className="h-5 w-5 text-primary flex-shrink-0" />
-                              ) : (
-                                <Image className="h-5 w-5 text-primary flex-shrink-0" />
-                              )}
-                              <span className="text-sm font-medium truncate flex-1">{file.name}</span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setMusicFile(prev => prev.filter((_, i) => i !== index));
-                                }}
+                      {isMounted ? (
+                        <DndContext
+                          sensors={sensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={handleDragEnd}
+                        >
+                          {/* Show selected files as thumbnails */}
+                          {(newFilePreviews.length > 0 || nativeFileData.length > 0) && (
+                            <div className="space-y-2">
+                              <p className="text-xs text-muted-foreground">Pages ({newFilePreviews.length + nativeFileData.length})</p>
+                              <SortableContext
+                                items={nativeFileData.length > 0
+                                  ? nativeFileData.map(f => f.id)
+                                  : newFilePreviews.map(p => p.id)
+                                }
+                                strategy={rectSortingStrategy}
                               >
-                                <X className="h-4 w-4" />
-                              </Button>
+                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                                  {nativeFileData.length > 0
+                                    ? nativeFileData.map((file, index) => (
+                                      <SortablePageItem
+                                        key={file.id}
+                                        id={file.id}
+                                        pageData={file.data}
+                                        index={index}
+                                        isPdf={file.type === 'pdf'}
+                                        onRemove={() => setNativeFileData(prev => prev.filter(f => f.id !== file.id))}
+                                      />
+                                    ))
+                                    : newFilePreviews.map((preview, index) => (
+                                      <SortablePageItem
+                                        key={preview.id}
+                                        id={preview.id}
+                                        pageData={preview.data || ''}
+                                        index={index}
+                                        isPdf={!preview.data}
+                                        onRemove={() => {
+                                          setNewFilePreviews(prev => prev.filter(p => p.id !== preview.id));
+                                        }}
+                                      />
+                                    ))
+                                  }
+                                </div>
+                              </SortableContext>
                             </div>
-                          ))}
-                          {nativeFileData.map((file, index) => (
-                            <div key={`native-${index}`} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
-                              {file.type === "pdf" ? (
-                                <FileText className="h-5 w-5 text-primary flex-shrink-0" />
-                              ) : (
-                                <Image className="h-5 w-5 text-primary flex-shrink-0" />
-                              )}
-                              <span className="text-sm font-medium truncate flex-1">{file.name}</span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setNativeFileData(prev => prev.filter((_, i) => i !== index));
-                                }}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                          )}
+                        </DndContext>
+                      ) : null}
 
                       {/* Upload area / Add more button */}
                       <div
@@ -478,7 +639,7 @@ export function AddSongDialog({
                       >
                         <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                         <p className="text-sm text-muted-foreground">
-                          {musicFile.length > 0 || nativeFileData.length > 0
+                          {newFilePreviews.length > 0 || nativeFileData.length > 0
                             ? "Add more pages"
                             : "Click to upload PDF or take photos"}
                         </p>
