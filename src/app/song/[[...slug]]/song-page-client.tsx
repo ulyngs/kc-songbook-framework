@@ -1372,12 +1372,20 @@ function MusicViewer({
   const textMusicContainerRef = useRef<HTMLDivElement | null>(null);
   const imageContainerRef = useRef<HTMLDivElement | null>(null);
   const imageTouchStateRef = useRef<{ initialDistance: number; initialZoom: number } | null>(null);
+  const textTouchStateRef = useRef<{ initialDistance: number; initialZoom: number } | null>(null);
 
   // Pinch-to-zoom for text music
   useEffect(() => {
     if (type !== "text" || !textMusicContainerRef.current || !onZoomChange) return;
 
     const node = textMusicContainerRef.current;
+
+    const getTouchDistance = (touches: TouchList) => {
+      if (touches.length < 2) return 0;
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
 
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey) {
@@ -1389,10 +1397,42 @@ function MusicViewer({
       }
     };
 
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        textTouchStateRef.current = {
+          initialDistance: getTouchDistance(e.touches),
+          initialZoom: zoom || 1,
+        };
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && textTouchStateRef.current) {
+        e.preventDefault();
+        const currentDistance = getTouchDistance(e.touches);
+        const scaleChange = currentDistance / textTouchStateRef.current.initialDistance;
+        const newZoom = Math.max(0.1, Math.min(5, textTouchStateRef.current.initialZoom * scaleChange));
+        onZoomChange(newZoom);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      textTouchStateRef.current = null;
+    };
+
     node.addEventListener("wheel", handleWheel, { passive: false });
+    node.addEventListener("touchstart", handleTouchStart, { passive: false });
+    node.addEventListener("touchmove", handleTouchMove, { passive: false });
+    node.addEventListener("touchend", handleTouchEnd);
+    node.addEventListener("touchcancel", handleTouchEnd);
 
     return () => {
       node.removeEventListener("wheel", handleWheel);
+      node.removeEventListener("touchstart", handleTouchStart);
+      node.removeEventListener("touchmove", handleTouchMove);
+      node.removeEventListener("touchend", handleTouchEnd);
+      node.removeEventListener("touchcancel", handleTouchEnd);
     };
   }, [type, zoom, onZoomChange]);
 
