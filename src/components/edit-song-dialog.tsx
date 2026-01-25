@@ -247,7 +247,6 @@ export function EditSongDialog({
             if (newFiles.length > 0) {
                 setMusicFile(prev => [...prev, ...newFiles]);
                 setNativeFileData([]); // Clear native files if web files selected
-                setKeepExistingMusic(false);
             }
         }
         // Reset the input so the same file can be selected again
@@ -264,7 +263,6 @@ export function EditSongDialog({
             if (result) {
                 setNativeFileData(prev => [...prev, result]);
                 setMusicFile([]);
-                setKeepExistingMusic(false);
             }
         } else {
             // Use HTML file input on web and iOS (iOS handles camera via HTML input)
@@ -296,28 +294,49 @@ export function EditSongDialog({
 
             // Handle music updates
             if (musicType === "file") {
+                // Collect all new file data (base64 strings)
+                let newFilesData: string[] = [];
+                let newFileType: 'pdf' | 'image' | undefined;
+
                 if (nativeFileData.length > 0) {
-                    // Native files picked (Tauri/iOS)
-                    if (nativeFileData.length === 1) {
-                        updates.musicData = nativeFileData[0].data;
-                        updates.musicType = nativeFileData[0].type;
-                        updates.musicFileName = nativeFileData[0].name;
-                    } else {
-                        updates.musicData = JSON.stringify(nativeFileData.map(f => f.data));
-                        updates.musicType = nativeFileData[0].type;
-                        updates.musicFileName = `${nativeFileData.length} images`;
-                    }
+                    newFilesData = nativeFileData.map(f => f.data);
+                    newFileType = nativeFileData[0].type;
                 } else if (musicFile.length > 0) {
-                    // New web files uploaded
-                    if (musicFile.length === 1) {
-                        updates.musicData = await fileToBase64(musicFile[0]);
-                        updates.musicType = getFileType(musicFile[0]) || undefined;
-                        updates.musicFileName = musicFile[0].name;
+                    newFilesData = await Promise.all(musicFile.map(f => fileToBase64(f)));
+                    newFileType = getFileType(musicFile[0]) || undefined;
+                }
+
+                if (newFilesData.length > 0) {
+                    // We have new files to add
+                    if (keepExistingMusic && song.musicData && song.musicType !== 'text') {
+                        // Merge with existing pages
+                        let existingPages: string[] = [];
+                        try {
+                            // Try to parse as JSON array (multi-page format)
+                            existingPages = JSON.parse(song.musicData);
+                            if (!Array.isArray(existingPages)) {
+                                existingPages = [song.musicData];
+                            }
+                        } catch {
+                            // Single page (raw base64 string)
+                            existingPages = [song.musicData];
+                        }
+
+                        const combinedPages = [...existingPages, ...newFilesData];
+                        updates.musicData = JSON.stringify(combinedPages);
+                        updates.musicType = song.musicType || newFileType;
+                        updates.musicFileName = `${combinedPages.length} images`;
                     } else {
-                        const base64Array = await Promise.all(musicFile.map(f => fileToBase64(f)));
-                        updates.musicData = JSON.stringify(base64Array);
-                        updates.musicType = getFileType(musicFile[0]) || undefined;
-                        updates.musicFileName = `${musicFile.length} images`;
+                        // No existing music or replacing it entirely
+                        if (newFilesData.length === 1) {
+                            updates.musicData = newFilesData[0];
+                            updates.musicType = newFileType;
+                            updates.musicFileName = nativeFileData[0]?.name || musicFile[0]?.name;
+                        } else {
+                            updates.musicData = JSON.stringify(newFilesData);
+                            updates.musicType = newFileType;
+                            updates.musicFileName = `${newFilesData.length} images`;
+                        }
                     }
                 } else if (!keepExistingMusic) {
                     // User cleared the existing file
@@ -568,11 +587,9 @@ export function EditSongDialog({
                                         >
                                             <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                                             <p className="text-sm text-muted-foreground">
-                                                {musicFile.length > 0 || nativeFileData.length > 0
+                                                {musicFile.length > 0 || nativeFileData.length > 0 || (keepExistingMusic && existingMusicFileName)
                                                     ? "Add more pages"
-                                                    : keepExistingMusic && existingMusicFileName
-                                                        ? "Replace current file"
-                                                        : "Click to upload PDF or take photos"}
+                                                    : "Click to upload PDF or take photos"}
                                             </p>
                                         </div>
                                     </div>
