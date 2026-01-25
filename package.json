@@ -1,6 +1,6 @@
 {
   "name": "karaoke-songbook",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -14,11 +14,14 @@
     "tauri:build": "tauri build",
     "tauri:ios": "tauri ios",
     "tauri:android": "tauri android",
-    "build:ios": "tauri ios build --export-method app-store-connect",
-    "build:mac": "tauri build --target universal-apple-darwin --bundles app && codesign --force --deep --sign \"Apple Distribution: ULRIK LYNGS (7YEYWQKK25)\" --entitlements src-tauri/Entitlements.plist \"src-tauri/target/universal-apple-darwin/release/bundle/macos/KC Songbook.app\" && rm -f \"KC Songbook.pkg\" && productbuild --sign \"3rd Party Mac Developer Installer: ULRIK LYNGS (7YEYWQKK25)\" --component \"src-tauri/target/universal-apple-darwin/release/bundle/macos/KC Songbook.app\" /Applications \"KC Songbook.pkg\"",
-    "build:appstore": "npm run build:ios && npm run build:mac"
+    "build:ios": "tauri ios build --export-method app-store-connect && mkdir -p appstore-submission && cp 'src-tauri/gen/apple/build/arm64/KC Songbook.ipa' appstore-submission/",
+    "build:mac": "tauri build --target universal-apple-darwin --bundles app && codesign --force --deep --sign \"Apple Distribution: ULRIK LYNGS (7YEYWQKK25)\" --entitlements src-tauri/Entitlements.plist \"src-tauri/target/universal-apple-darwin/release/bundle/macos/KC Songbook.app\" && mkdir -p appstore-submission && rm -f \"appstore-submission/KC Songbook.pkg\" && productbuild --sign \"3rd Party Mac Developer Installer: ULRIK LYNGS (7YEYWQKK25)\" --component \"src-tauri/target/universal-apple-darwin/release/bundle/macos/KC Songbook.app\" /Applications \"appstore-submission/KC Songbook.pkg\"",
+    "build:appstore": "npm run build:ios && npm run build:mac && echo '\n✅ App Store builds complete! Files ready in appstore-submission/:\n' && ls -la appstore-submission/"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@netlify/blobs": "^10.5.0",
     "@radix-ui/react-checkbox": "^1.3.3",
