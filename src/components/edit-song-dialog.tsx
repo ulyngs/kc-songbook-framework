@@ -25,6 +25,20 @@ const isTauri = () => {
     return typeof window !== 'undefined' && '__TAURI__' in window;
 };
 
+// Check if we're on iOS (Tauri iOS or browser on iOS)
+const isIOS = () => {
+    if (typeof window === 'undefined') return false;
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    return /iphone|ipad|ipod/.test(userAgent) ||
+        (userAgent.includes('mac') && 'ontouchend' in document);
+};
+
+// Use native Tauri file picker only on desktop, NOT on iOS
+// (Tauri dialog plugin doesn't properly handle iOS camera capture)
+const shouldUseNativeDialog = () => {
+    return isTauri() && !isIOS();
+};
+
 // Pick file using Tauri's native dialog (for iOS/desktop native apps)
 async function openNativeFilePicker(): Promise<{ name: string; data: string; type: 'pdf' | 'image' } | null> {
     try {
@@ -83,12 +97,12 @@ export function EditSongDialog({
     const [isXmas, setIsXmas] = useState(false);
     const [musicType, setMusicType] = useState<"file" | "text">("file");
     const [musicText, setMusicText] = useState("");
-    const [musicFile, setMusicFile] = useState<File | null>(null);
+    const [musicFile, setMusicFile] = useState<File[]>([]);
     const [existingMusicType, setExistingMusicType] = useState<"pdf" | "image" | "text" | undefined>();
     const [existingMusicFileName, setExistingMusicFileName] = useState<string | undefined>();
     const [keepExistingMusic, setKeepExistingMusic] = useState(true);
-    // State for native file picker (Tauri/iOS)
-    const [nativeFileData, setNativeFileData] = useState<{ name: string; data: string; type: 'pdf' | 'image' } | null>(null);
+    // State for native file picker (Tauri/iOS) - array for multi-page support
+    const [nativeFileData, setNativeFileData] = useState<{ name: string; data: string; type: 'pdf' | 'image' }[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
     const [confirmingCancel, setConfirmingCancel] = useState(false);
@@ -149,7 +163,7 @@ export function EditSongDialog({
                         // Set existing music info
                         setExistingMusicType(song.musicType);
                         setExistingMusicFileName(song.musicFileName);
-                        setMusicFile(null);
+                        setMusicFile([]);
                         return; // Don't run the default initialization
                     }
                 } catch (e) {
@@ -176,7 +190,7 @@ export function EditSongDialog({
                 setMusicType("file");
                 setMusicText("");
             }
-            setMusicFile(null);
+            setMusicFile([]);
         }
     }, [song, open, clearDraft]);
 
@@ -218,29 +232,42 @@ export function EditSongDialog({
     }, [hasUnsavedChanges, confirmingCancel, clearDraft, onOpenChange]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const type = getFileType(file);
-            if (!type) {
-                toast.error("Please upload a PDF or image file");
-                return;
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            const newFiles: File[] = [];
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const type = getFileType(file);
+                if (!type) {
+                    toast.error(`${file.name}: Please upload PDF or image files only`);
+                    continue;
+                }
+                newFiles.push(file);
             }
-            setMusicFile(file);
-            setNativeFileData(null); // Clear native file if web file selected
-            setKeepExistingMusic(false);
+            if (newFiles.length > 0) {
+                setMusicFile(prev => [...prev, ...newFiles]);
+                setNativeFileData([]); // Clear native files if web files selected
+                setKeepExistingMusic(false);
+            }
+        }
+        // Reset the input so the same file can be selected again
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
         }
     };
 
-    // Handle file upload click - use native picker on Tauri, HTML input on web
+    // Handle file upload click - use native picker on desktop Tauri only, HTML input on iOS and web
     const handleFileUploadClick = useCallback(async () => {
-        if (isTauri()) {
+        if (shouldUseNativeDialog()) {
+            // Use native file picker on desktop Tauri only
             const result = await openNativeFilePicker();
             if (result) {
-                setNativeFileData(result);
-                setMusicFile(null);
+                setNativeFileData(prev => [...prev, result]);
+                setMusicFile([]);
                 setKeepExistingMusic(false);
             }
         } else {
+            // Use HTML file input on web and iOS (iOS handles camera via HTML input)
             fileInputRef.current?.click();
         }
     }, []);
@@ -269,16 +296,29 @@ export function EditSongDialog({
 
             // Handle music updates
             if (musicType === "file") {
-                if (nativeFileData) {
-                    // Native file picked (Tauri/iOS)
-                    updates.musicData = nativeFileData.data;
-                    updates.musicType = nativeFileData.type;
-                    updates.musicFileName = nativeFileData.name;
-                } else if (musicFile) {
-                    // New web file uploaded
-                    updates.musicData = await fileToBase64(musicFile);
-                    updates.musicType = getFileType(musicFile) || undefined;
-                    updates.musicFileName = musicFile.name;
+                if (nativeFileData.length > 0) {
+                    // Native files picked (Tauri/iOS)
+                    if (nativeFileData.length === 1) {
+                        updates.musicData = nativeFileData[0].data;
+                        updates.musicType = nativeFileData[0].type;
+                        updates.musicFileName = nativeFileData[0].name;
+                    } else {
+                        updates.musicData = JSON.stringify(nativeFileData.map(f => f.data));
+                        updates.musicType = nativeFileData[0].type;
+                        updates.musicFileName = `${nativeFileData.length} images`;
+                    }
+                } else if (musicFile.length > 0) {
+                    // New web files uploaded
+                    if (musicFile.length === 1) {
+                        updates.musicData = await fileToBase64(musicFile[0]);
+                        updates.musicType = getFileType(musicFile[0]) || undefined;
+                        updates.musicFileName = musicFile[0].name;
+                    } else {
+                        const base64Array = await Promise.all(musicFile.map(f => fileToBase64(f)));
+                        updates.musicData = JSON.stringify(base64Array);
+                        updates.musicType = getFileType(musicFile[0]) || undefined;
+                        updates.musicFileName = `${musicFile.length} images`;
+                    }
                 } else if (!keepExistingMusic) {
                     // User cleared the existing file
                     updates.musicData = undefined;
@@ -313,7 +353,8 @@ export function EditSongDialog({
 
     const handleRemoveExistingMusic = () => {
         setKeepExistingMusic(false);
-        setMusicFile(null);
+        setMusicFile([]);
+        setNativeFileData([]);
         setExistingMusicFileName(undefined);
         setExistingMusicType(undefined);
     };
@@ -442,59 +483,74 @@ export function EditSongDialog({
                                 </TabsList>
 
                                 <TabsContent value="file" className="mt-3">
-                                    <div
-                                        className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
-                                        onClick={handleFileUploadClick}
-                                    >
-                                        {musicFile || nativeFileData ? (
-                                            <div className="flex items-center justify-center gap-3">
-                                                {(musicFile?.type === "application/pdf" || nativeFileData?.type === "pdf") ? (
-                                                    <FileText className="h-8 w-8 text-primary" />
-                                                ) : (
-                                                    <Image className="h-8 w-8 text-primary" />
-                                                )}
-                                                <div className="text-left">
-                                                    <p className="font-medium text-sm">
-                                                        {musicFile?.name || nativeFileData?.name}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {musicFile
-                                                            ? `${(musicFile.size / 1024).toFixed(1)} KB (new file)`
-                                                            : "(new file)"}
-                                                    </p>
-                                                </div>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="ml-auto"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setMusicFile(null);
-                                                        setNativeFileData(null);
-                                                    }}
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </Button>
+                                    <div className="space-y-3">
+                                        {/* Show selected new files */}
+                                        {(musicFile.length > 0 || nativeFileData.length > 0) && (
+                                            <div className="space-y-2">
+                                                {musicFile.map((file, index) => (
+                                                    <div key={`web-${index}`} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+                                                        {file.type?.includes("pdf") ? (
+                                                            <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                                                        ) : (
+                                                            <Image className="h-5 w-5 text-primary flex-shrink-0" />
+                                                        )}
+                                                        <span className="text-sm font-medium truncate flex-1">{file.name}</span>
+                                                        <span className="text-xs text-muted-foreground">(new)</span>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setMusicFile(prev => prev.filter((_, i) => i !== index));
+                                                            }}
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                                {nativeFileData.map((file, index) => (
+                                                    <div key={`native-${index}`} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+                                                        {file.type === "pdf" ? (
+                                                            <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                                                        ) : (
+                                                            <Image className="h-5 w-5 text-primary flex-shrink-0" />
+                                                        )}
+                                                        <span className="text-sm font-medium truncate flex-1">{file.name}</span>
+                                                        <span className="text-xs text-muted-foreground">(new)</span>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setNativeFileData(prev => prev.filter((_, i) => i !== index));
+                                                            }}
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ) : keepExistingMusic && existingMusicFileName ? (
-                                            <div className="flex items-center justify-center gap-3">
+                                        )}
+
+                                        {/* Show existing music (if no new files added) */}
+                                        {musicFile.length === 0 && nativeFileData.length === 0 && keepExistingMusic && existingMusicFileName && (
+                                            <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
                                                 {existingMusicType === "pdf" ? (
-                                                    <FileText className="h-8 w-8 text-primary" />
+                                                    <FileText className="h-5 w-5 text-primary flex-shrink-0" />
                                                 ) : (
-                                                    <Image className="h-8 w-8 text-primary" />
+                                                    <Image className="h-5 w-5 text-primary flex-shrink-0" />
                                                 )}
-                                                <div className="text-left">
-                                                    <p className="font-medium text-sm">{existingMusicFileName}</p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        Current file - click to replace
-                                                    </p>
-                                                </div>
+                                                <span className="text-sm font-medium truncate flex-1">{existingMusicFileName}</span>
+                                                <span className="text-xs text-muted-foreground">(current)</span>
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="ml-auto"
+                                                    className="h-8 w-8"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         handleRemoveExistingMusic();
@@ -503,19 +559,28 @@ export function EditSongDialog({
                                                     <X className="h-4 w-4" />
                                                 </Button>
                                             </div>
-                                        ) : (
-                                            <>
-                                                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                                                <p className="text-sm text-muted-foreground">
-                                                    Click to upload PDF or image
-                                                </p>
-                                            </>
                                         )}
+
+                                        {/* Upload area / Add more button */}
+                                        <div
+                                            className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                                            onClick={handleFileUploadClick}
+                                        >
+                                            <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                                            <p className="text-sm text-muted-foreground">
+                                                {musicFile.length > 0 || nativeFileData.length > 0
+                                                    ? "Add more pages"
+                                                    : keepExistingMusic && existingMusicFileName
+                                                        ? "Replace current file"
+                                                        : "Click to upload PDF or take photos"}
+                                            </p>
+                                        </div>
                                     </div>
                                     <input
                                         ref={fileInputRef}
                                         type="file"
                                         accept=".pdf,image/*"
+                                        multiple
                                         onChange={handleFileChange}
                                         className="hidden"
                                     />

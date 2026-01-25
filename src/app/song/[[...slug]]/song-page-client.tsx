@@ -244,14 +244,14 @@ export default function SongPageClient() {
   }, [isLyricsFullscreen, setIsLyricsFullscreen]);
 
   const handleZoomChange = useCallback((newZoom: number) => {
-    const clampedZoom = Math.max(0.5, Math.min(5, newZoom));
+    const clampedZoom = Math.max(0.1, Math.min(5, newZoom));
     setPdfZoom(clampedZoom);
     setZoomInputValue(Math.round(clampedZoom * 100).toString());
   }, []);
 
   const handleZoomInputSubmit = useCallback(() => {
     const parsed = parseInt(zoomInputValue, 10);
-    if (!isNaN(parsed) && parsed >= 50 && parsed <= 500) {
+    if (!isNaN(parsed) && parsed >= 10 && parsed <= 500) {
       handleZoomChange(parsed / 100);
     } else {
       // Reset to current zoom if invalid
@@ -1097,7 +1097,7 @@ export default function SongPageClient() {
                           size="icon"
                           className="h-8 w-8 rounded-r-none border-r"
                           onClick={() => handleZoomChange(pdfZoom - 0.15)}
-                          disabled={pdfZoom <= 0.5}
+                          disabled={pdfZoom <= 0.1}
                           title="Zoom out (15%)"
                         >
                           <Minus className="h-3.5 w-3.5" />
@@ -1368,9 +1368,12 @@ function MusicViewer({
   isMovie?: boolean;
   tempo?: string;
 }) {
-  // Handle pinch-to-zoom for text music
+  // Refs for text and image pinch-to-zoom
   const textMusicContainerRef = useRef<HTMLDivElement | null>(null);
+  const imageContainerRef = useRef<HTMLDivElement | null>(null);
+  const imageTouchStateRef = useRef<{ initialDistance: number; initialZoom: number } | null>(null);
 
+  // Pinch-to-zoom for text music
   useEffect(() => {
     if (type !== "text" || !textMusicContainerRef.current || !onZoomChange) return;
 
@@ -1381,7 +1384,7 @@ function MusicViewer({
         e.preventDefault();
         const currentZoom = zoom || 1;
         const zoomFactor = 1 - e.deltaY * 0.01;
-        const newZoom = Math.max(0.5, Math.min(5, currentZoom * zoomFactor));
+        const newZoom = Math.max(0.1, Math.min(5, currentZoom * zoomFactor));
         onZoomChange(newZoom);
       }
     };
@@ -1390,6 +1393,68 @@ function MusicViewer({
 
     return () => {
       node.removeEventListener("wheel", handleWheel);
+    };
+  }, [type, zoom, onZoomChange]);
+
+  // Pinch-to-zoom for image music
+  useEffect(() => {
+    if (type !== "image" || !imageContainerRef.current || !onZoomChange) return;
+
+    const node = imageContainerRef.current;
+
+    const getTouchDistance = (touches: TouchList) => {
+      if (touches.length < 2) return 0;
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const currentZoom = zoom || 1;
+        const zoomFactor = 1 - e.deltaY * 0.01;
+        const newZoom = Math.max(0.1, Math.min(5, currentZoom * zoomFactor));
+        onZoomChange(newZoom);
+      }
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        imageTouchStateRef.current = {
+          initialDistance: getTouchDistance(e.touches),
+          initialZoom: zoom || 1,
+        };
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && imageTouchStateRef.current) {
+        e.preventDefault();
+        const currentDistance = getTouchDistance(e.touches);
+        const scaleChange = currentDistance / imageTouchStateRef.current.initialDistance;
+        const newZoom = Math.max(0.1, Math.min(5, imageTouchStateRef.current.initialZoom * scaleChange));
+        onZoomChange(newZoom);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      imageTouchStateRef.current = null;
+    };
+
+    node.addEventListener("wheel", handleWheel, { passive: false });
+    node.addEventListener("touchstart", handleTouchStart, { passive: false });
+    node.addEventListener("touchmove", handleTouchMove, { passive: false });
+    node.addEventListener("touchend", handleTouchEnd);
+    node.addEventListener("touchcancel", handleTouchEnd);
+
+    return () => {
+      node.removeEventListener("wheel", handleWheel);
+      node.removeEventListener("touchstart", handleTouchStart);
+      node.removeEventListener("touchmove", handleTouchMove);
+      node.removeEventListener("touchend", handleTouchEnd);
+      node.removeEventListener("touchcancel", handleTouchEnd);
     };
   }, [type, zoom, onZoomChange]);
   // Metronome state and logic
@@ -1506,14 +1571,57 @@ function MusicViewer({
   }
 
   if (type === "image") {
+    // Zoom prop controls image width relative to container
+    // 1.0 (100%) = fit container width, >1 = zoom in, <1 = zoom out
+    const imageScale = zoom || 1;
+
+    // Parse data - could be single base64 or JSON array of base64 strings
+    let imageSources: string[] = [];
+    try {
+      if (data.startsWith('[')) {
+        // Multiple images stored as JSON array
+        imageSources = JSON.parse(data);
+      } else {
+        // Single image (backwards compatibility)
+        imageSources = [data];
+      }
+    } catch {
+      // Fallback to single image if parse fails
+      imageSources = [data];
+    }
+
+    // Calculate width: at 100% zoom, image fits container (minus padding)
+    // Width is percentage of container, so 100% * zoom gives us the right behavior
+    const imageWidthPercent = Math.min(100 * imageScale, 500); // Cap at 500% to prevent performance issues
+
     return (
-      <div className="bg-card rounded-xl border border-border/50 p-4 shadow-sm">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={data}
-          alt={fileName || "Music sheet"}
-          className="max-w-full h-auto rounded-lg mx-auto"
-        />
+      <div
+        ref={(node) => {
+          imageContainerRef.current = node;
+          if (scrollRef) {
+            (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+          }
+        }}
+        className="flex flex-col items-center gap-4 py-4 px-2 overflow-auto bg-neutral-800 dark:bg-neutral-900"
+        style={{
+          height: isImmersive ? '100vh' : 'calc(100vh - 4rem)',
+          touchAction: "pan-x pan-y",
+        }}
+      >
+        {imageSources.map((imgSrc, index) => (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            key={index}
+            src={imgSrc}
+            alt={fileName ? `${fileName} - Page ${index + 1}` : `Music sheet page ${index + 1}`}
+            className="rounded-lg shadow-lg"
+            style={{
+              width: `${imageWidthPercent}%`,
+              maxWidth: 'none',
+              height: 'auto',
+            }}
+          />
+        ))}
       </div>
     );
   }

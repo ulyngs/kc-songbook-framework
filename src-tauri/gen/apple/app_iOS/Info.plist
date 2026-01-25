@@ -42,5 +42,11 @@
 	</array>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.music</string>
+	<key>NSCameraUsageDescription</key>
+	<string>KC Songbook needs access to your camera to take photos of music sheets.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>KC Songbook needs access to your photo library to select music sheet images.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>KC Songbook needs permission to save photos to your library.</string>
 </dict>
 </plist>

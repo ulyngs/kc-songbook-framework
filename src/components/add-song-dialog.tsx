@@ -25,6 +25,20 @@ const isTauri = () => {
   return typeof window !== 'undefined' && '__TAURI__' in window;
 };
 
+// Check if we're on iOS (Tauri iOS or browser on iOS)
+const isIOS = () => {
+  if (typeof window === 'undefined') return false;
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /iphone|ipad|ipod/.test(userAgent) ||
+    (userAgent.includes('mac') && 'ontouchend' in document);
+};
+
+// Use native Tauri file picker only on desktop, NOT on iOS
+// (Tauri dialog plugin doesn't properly handle iOS camera capture)
+const shouldUseNativeDialog = () => {
+  return isTauri() && !isIOS();
+};
+
 // Pick file using Tauri's native dialog (for iOS/desktop native apps)
 async function openNativeFilePicker(): Promise<{ name: string; data: string; type: 'pdf' | 'image' } | null> {
   try {
@@ -88,9 +102,9 @@ export function AddSongDialog({
   const [lyrics, setLyrics] = useState("");
   const [musicType, setMusicType] = useState<"file" | "text">("file");
   const [musicText, setMusicText] = useState("");
-  const [musicFile, setMusicFile] = useState<File | null>(null);
-  // State for native file picker (Tauri/iOS)
-  const [nativeFileData, setNativeFileData] = useState<{ name: string; data: string; type: 'pdf' | 'image' } | null>(null);
+  const [musicFile, setMusicFile] = useState<File[]>([]);
+  // State for native file picker (Tauri/iOS) - array for multi-page support
+  const [nativeFileData, setNativeFileData] = useState<{ name: string; data: string; type: 'pdf' | 'image' }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // KC Collection Import State
@@ -125,36 +139,47 @@ export function AddSongDialog({
     setLyrics("");
     setMusicType("file");
     setMusicText("");
-    setMusicFile(null);
-    setNativeFileData(null);
+    setMusicFile([]);
+    setNativeFileData([]);
     setShowPasswordInput(false);
     setPassword("");
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const type = getFileType(file);
-      if (!type) {
-        toast.error("Please upload a PDF or image file");
-        return;
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const newFiles: File[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const type = getFileType(file);
+        if (!type) {
+          toast.error(`${file.name}: Please upload PDF or image files only`);
+          continue;
+        }
+        newFiles.push(file);
       }
-      setMusicFile(file);
-      setNativeFileData(null); // Clear native file if web file selected
+      if (newFiles.length > 0) {
+        setMusicFile(prev => [...prev, ...newFiles]);
+        setNativeFileData([]); // Clear native files if web files selected
+      }
+    }
+    // Reset the input so the same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
-  // Handle file upload click - use native picker on Tauri, HTML input on web
+  // Handle file upload click - use native picker on desktop Tauri only, HTML input on iOS and web
   const handleFileUploadClick = useCallback(async () => {
-    if (isTauri()) {
-      // Use native file picker on Tauri (iOS/desktop)
+    if (shouldUseNativeDialog()) {
+      // Use native file picker on desktop Tauri only
       const result = await openNativeFilePicker();
       if (result) {
-        setNativeFileData(result);
-        setMusicFile(null); // Clear web file if native file selected
+        setNativeFileData(prev => [...prev, result]);
+        setMusicFile([]); // Clear web files if native file selected
       }
     } else {
-      // Use HTML file input on web
+      // Use HTML file input on web and iOS (iOS handles camera via HTML input)
       fileInputRef.current?.click();
     }
   }, []);
@@ -174,17 +199,34 @@ export function AddSongDialog({
       let resolvedMusicType: "pdf" | "image" | "text" | undefined;
       let musicFileName: string | undefined;
 
-      if (musicType === "file" && (musicFile || nativeFileData)) {
-        if (nativeFileData) {
+      if (musicType === "file" && (musicFile.length > 0 || nativeFileData.length > 0)) {
+        if (nativeFileData.length > 0) {
           // Use native file data (already base64)
-          musicData = nativeFileData.data;
-          resolvedMusicType = nativeFileData.type;
-          musicFileName = nativeFileData.name;
-        } else if (musicFile) {
-          // Use web file
-          musicData = await fileToBase64(musicFile);
-          resolvedMusicType = getFileType(musicFile) || undefined;
-          musicFileName = musicFile.name;
+          if (nativeFileData.length === 1) {
+            // Single file - use existing format for backwards compatibility
+            musicData = nativeFileData[0].data;
+            resolvedMusicType = nativeFileData[0].type;
+            musicFileName = nativeFileData[0].name;
+          } else {
+            // Multiple files - JSON encode array of base64 strings
+            musicData = JSON.stringify(nativeFileData.map(f => f.data));
+            resolvedMusicType = nativeFileData[0].type; // All should be same type (image)
+            musicFileName = `${nativeFileData.length} images`;
+          }
+        } else if (musicFile.length > 0) {
+          // Use web files
+          if (musicFile.length === 1) {
+            // Single file - use existing format
+            musicData = await fileToBase64(musicFile[0]);
+            resolvedMusicType = getFileType(musicFile[0]) || undefined;
+            musicFileName = musicFile[0].name;
+          } else {
+            // Multiple files - convert all to base64 and JSON encode
+            const base64Array = await Promise.all(musicFile.map(f => fileToBase64(f)));
+            musicData = JSON.stringify(base64Array);
+            resolvedMusicType = getFileType(musicFile[0]) || undefined;
+            musicFileName = `${musicFile.length} images`;
+          }
         }
       } else if (musicType === "text" && musicText.trim()) {
         musicData = musicText;
@@ -378,47 +420,75 @@ export function AddSongDialog({
                   </TabsList>
 
                   <TabsContent value="file" className="mt-3">
-                    <div
-                      className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
-                      onClick={handleFileUploadClick}
-                    >
-                      {musicFile || nativeFileData ? (
-                        <div className="flex items-center justify-center gap-3">
-                          {(musicFile?.type?.includes("pdf") || nativeFileData?.type === "pdf") ? (
-                            <FileText className="h-6 w-6 text-primary" />
-                          ) : (
-                            <Image className="h-6 w-6 text-primary" />
-                          )}
-                          <span className="text-sm font-medium">
-                            {musicFile?.name || nativeFileData?.name}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="ml-auto"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setMusicFile(null);
-                              setNativeFileData(null);
-                            }}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                    <div className="space-y-3">
+                      {/* Show selected files */}
+                      {(musicFile.length > 0 || nativeFileData.length > 0) && (
+                        <div className="space-y-2">
+                          {musicFile.map((file, index) => (
+                            <div key={`web-${index}`} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+                              {file.type?.includes("pdf") ? (
+                                <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                              ) : (
+                                <Image className="h-5 w-5 text-primary flex-shrink-0" />
+                              )}
+                              <span className="text-sm font-medium truncate flex-1">{file.name}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMusicFile(prev => prev.filter((_, i) => i !== index));
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                          {nativeFileData.map((file, index) => (
+                            <div key={`native-${index}`} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+                              {file.type === "pdf" ? (
+                                <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                              ) : (
+                                <Image className="h-5 w-5 text-primary flex-shrink-0" />
+                              )}
+                              <span className="text-sm font-medium truncate flex-1">{file.name}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setNativeFileData(prev => prev.filter((_, i) => i !== index));
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
                         </div>
-                      ) : (
-                        <>
-                          <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground">
-                            Click to upload PDF or image
-                          </p>
-                        </>
                       )}
+
+                      {/* Upload area / Add more button */}
+                      <div
+                        className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                        onClick={handleFileUploadClick}
+                      >
+                        <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">
+                          {musicFile.length > 0 || nativeFileData.length > 0
+                            ? "Add more pages"
+                            : "Click to upload PDF or take photos"}
+                        </p>
+                      </div>
                     </div>
                     <input
                       ref={fileInputRef}
                       type="file"
                       accept=".pdf,image/*"
+                      multiple
                       onChange={handleFileChange}
                       className="hidden"
                     />
