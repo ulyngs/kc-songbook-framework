@@ -16,7 +16,8 @@
     "tauri:android": "tauri android",
     "build:ios": "tauri ios build --export-method app-store-connect && mkdir -p appstore-submission && cp 'src-tauri/gen/apple/build/arm64/KC Songbook.ipa' appstore-submission/",
     "build:mac": "tauri build --target universal-apple-darwin --bundles app && codesign --force --deep --sign \"Apple Distribution: ULRIK LYNGS (7YEYWQKK25)\" --entitlements src-tauri/Entitlements.plist \"src-tauri/target/universal-apple-darwin/release/bundle/macos/KC Songbook.app\" && mkdir -p appstore-submission && rm -f \"appstore-submission/KC Songbook.pkg\" && productbuild --sign \"3rd Party Mac Developer Installer: ULRIK LYNGS (7YEYWQKK25)\" --component \"src-tauri/target/universal-apple-darwin/release/bundle/macos/KC Songbook.app\" /Applications \"appstore-submission/KC Songbook.pkg\"",
-    "build:appstore": "npm run build:ios && npm run build:mac && echo '\n✅ App Store builds complete! Files ready in appstore-submission/:\n' && ls -la appstore-submission/"
+    "build:appstore": "npm run build:ios && npm run build:mac && echo '\n✅ App Store builds complete! Files ready in appstore-submission/:\n' && ls -la appstore-submission/",
+    "upload-kc-collection": "node scripts/upload-kc-collection.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
