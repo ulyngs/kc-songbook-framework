@@ -675,6 +675,12 @@ export default function SongPageClient() {
 
   return (
     <div className="min-h-screen bg-background bg-pattern">
+      {/* Drag region for macOS window dragging */}
+      <div
+        data-tauri-drag-region
+        className="fixed top-0 left-0 right-0 h-8 z-50"
+        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+      />
       <div className="gradient-warm min-h-screen">
         {/* Content */}
         <main
