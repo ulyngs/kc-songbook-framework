@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   Loader2,
   CheckCircle2,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,6 +38,7 @@ export function DataManagementDialog({
   onDataChanged,
 }: DataManagementDialogProps) {
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingMetadata, setIsExportingMetadata] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -59,6 +61,41 @@ export function DataManagementDialog({
       toast.error("Failed to export backup");
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleExportMetadata = async () => {
+    setIsExportingMetadata(true);
+    try {
+      const songs = await getAllSongs();
+      const metadata = songs.map(song => ({
+        title: song.title,
+        artist: song.artist,
+        key: song.key,
+        tempo: song.tempo,
+        isXmas: song.isXmas,
+        isMovie: song.isMovie,
+        isFavourite: song.isFavourite,
+        isPublicDomain: song.isPublicDomain,
+      }));
+
+      const json = JSON.stringify(metadata, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `songbook-metadata-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success("Metadata exported successfully!");
+    } catch (error) {
+      console.error("Metadata export failed:", error);
+      toast.error("Failed to export metadata");
+    } finally {
+      setIsExportingMetadata(false);
     }
   };
 
@@ -134,18 +171,33 @@ export function DataManagementDialog({
                 Download all your songs as a JSON file. Keep this file private -
                 it contains your personal songbook.
               </p>
-              <Button
-                onClick={handleExport}
-                disabled={isExporting || songCount === 0}
-                size="sm"
-              >
-                {isExporting ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4 mr-2" />
-                )}
-                Download Backup
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={handleExport}
+                  disabled={isExporting || songCount === 0}
+                  size="sm"
+                >
+                  {isExporting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  Full Backup
+                </Button>
+                <Button
+                  onClick={handleExportMetadata}
+                  disabled={isExportingMetadata || songCount === 0}
+                  size="sm"
+                  variant="outline"
+                >
+                  {isExportingMetadata ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4 mr-2" />
+                  )}
+                  Metadata Only
+                </Button>
+              </div>
             </div>
           </div>
 
