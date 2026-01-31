@@ -1,40 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { Search, Plus, Upload, Moon, Sun, Settings, Download, Lock } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { useTheme } from "next-themes";
 
-interface HeaderProps {
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-  onAddSong: () => void;
-  onAddKCCollection: () => void;
-  onDataManagement: () => void;
-}
-
-export function Header({
-  searchQuery,
-  onSearchChange,
-  onAddSong,
-  onAddKCCollection,
-  onDataManagement,
-}: HeaderProps) {
-  const { theme, setTheme } = useTheme();
+export function Header() {
 
   return (
     <header
@@ -57,62 +25,9 @@ export function Header({
                 The Karaoke Collective Songbook
               </h1>
               <p className="text-xs text-muted-foreground/70 -mt-0.5">
-                Made with ♥ by{" "}
-                <a
-                  href="https://ulriklyngs.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-foreground transition-colors underline decoration-muted-foreground/30 underline-offset-2 hover:decoration-muted-foreground/60"
-                >
-                  Ulrik Lyngs
-                </a>
+                Made with ♥ by Ulrik Lyngs
               </p>
             </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                    className="h-10 w-10 text-muted-foreground hover:text-foreground"
-                  >
-                    <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                    <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                    <span className="sr-only">Toggle theme</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Toggle theme</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="default" className="shadow-lg shadow-primary/20 text-base">
-                  <Plus className="h-5 w-5 mr-1.5" />
-                  <span className="hidden sm:inline">Add Song</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={onAddSong} className="text-base py-2">
-                  <Plus className="h-5 w-5 mr-2" />
-                  Add Single Song
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onAddKCCollection} className="text-base py-2">
-                  <Lock className="h-5 w-5 mr-2" />
-                  Add KC Collection
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onDataManagement} className="text-base py-2">
-                  <Download className="h-5 w-5 mr-2" />
-                  Backup & Restore
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
       </div>

@@ -41,6 +41,7 @@ interface SongListProps {
   onChristmasModeChange: (enabled: boolean) => void;
   onSongUpdated?: () => void;
   otherListMatchCount?: number;
+  onAddSong?: () => void;
 }
 
 export function SongList({
@@ -55,6 +56,7 @@ export function SongList({
   onChristmasModeChange,
   onSongUpdated,
   otherListMatchCount = 0,
+  onAddSong,
 }: SongListProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingSong, setEditingSong] = useState<Song | null>(null);
@@ -168,7 +170,7 @@ export function SongList({
             className="data-[state=unchecked]:bg-muted-foreground/30"
           />
           <Label htmlFor="christmas-mode" className="text-sm sm:text-base cursor-pointer">
-            🎄 <span className="hidden sm:inline">Christmas </span>songs
+            🎄<span className="hidden sm:inline">Christmas</span>songs
           </Label>
         </div>
       </div>

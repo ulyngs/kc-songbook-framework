@@ -8,6 +8,16 @@ import { Header } from "@/components/header";
 import { AddSongDialog } from "@/components/add-song-dialog";
 import { DataManagementDialog } from "@/components/data-management-dialog";
 import { EmptyState } from "@/components/empty-state";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Plus, Lock, Download, Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
 
 export type SortField = "title" | "artist";
 export type SortOrder = "asc" | "desc";
@@ -22,6 +32,7 @@ export default function Home() {
   const [dataManagementOpen, setDataManagementOpen] = useState(false);
   const [christmasMode, setChristmasMode] = useState(false);
   const [addDialogMode, setAddDialogMode] = useState<"single" | "kc-collection">("single");
+  const { theme, setTheme } = useTheme();
 
   // Load songs from IndexedDB
   const loadSongs = async () => {
@@ -122,19 +133,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background bg-pattern">
       <div className="gradient-warm min-h-screen">
-        <Header
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onAddSong={() => {
-            setAddDialogMode("single");
-            setAddDialogOpen(true);
-          }}
-          onAddKCCollection={() => {
-            setAddDialogMode("kc-collection");
-            setAddDialogOpen(true);
-          }}
-          onDataManagement={() => setDataManagementOpen(true)}
-        />
+        <Header />
 
         <main className="container mx-auto px-4 pb-8">
           {isLoading ? (
@@ -181,6 +180,59 @@ export default function Home() {
           onOpenChange={setDataManagementOpen}
           onDataChanged={loadSongs}
         />
+
+        {/* Floating Action Button */}
+        <div className="fixed bottom-6 right-6 z-50">
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="lg"
+                className="h-14 w-14 rounded-full shadow-xl shadow-primary/30 hover:shadow-primary/40 transition-shadow"
+              >
+                <Plus className="h-6 w-6" />
+                <span className="sr-only">Add</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="top" sideOffset={8} className="w-56">
+              <DropdownMenuItem
+                onClick={() => {
+                  setAddDialogMode("single");
+                  setAddDialogOpen(true);
+                }}
+                className="text-base py-2 text-left"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Add Single Song
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setAddDialogMode("kc-collection");
+                  setAddDialogOpen(true);
+                }}
+                className="text-base py-2 text-left"
+              >
+                <Lock className="h-5 w-5 mr-2" />
+                Unlock KC Collection
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setDataManagementOpen(true)}
+                className="text-base py-2 text-left"
+              >
+                <Download className="h-5 w-5 mr-2" />
+                Backup & Restore
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="text-base py-2 text-left"
+              >
+                <Sun className="h-5 w-5 mr-2 rotate-0 scale-100 dark:-rotate-90 dark:scale-0 transition-transform" />
+                <Moon className="absolute h-5 w-5 ml-0 rotate-90 scale-0 dark:rotate-0 dark:scale-100 transition-transform" />
+                <span className="ml-0">Toggle Theme</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </div>
   );
