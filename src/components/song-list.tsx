@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Song, updateSong } from "@/lib/db";
 import { SortField, SortOrder } from "@/app/page";
-import { ArrowUpDown, ArrowUp, ArrowDown, Music, MoreHorizontal, Pencil, Trash2, Heart, Search } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Music, MoreHorizontal, Pencil, Trash2, Heart, Search, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -94,6 +94,35 @@ export function SongList({
       console.error("Failed to toggle favourite:", error);
       toast.error("Failed to update favourite");
     }
+  };
+
+  const handleExport = (song: Song) => {
+    // Create a clean export object (excluding internal id and timestamps)
+    const exportData = {
+      title: song.title,
+      artist: song.artist,
+      key: song.key,
+      tempo: song.tempo,
+      lyrics: song.lyrics,
+      isXmas: song.isXmas,
+      isMovie: song.isMovie,
+      isFavourite: song.isFavourite,
+      musicType: song.musicType,
+      musicData: song.musicData,
+      musicFileName: song.musicFileName,
+      isPublicDomain: song.isPublicDomain,
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${song.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`Exported "${song.title}"`);
   };
 
   // Helper to render "no results" message
@@ -264,6 +293,10 @@ export function SongList({
                     <Pencil className="mr-2 h-4 w-4" />
                     Edit
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport(song)}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Export as JSON
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => handleDelete(song)}
@@ -373,6 +406,10 @@ export function SongList({
                         <DropdownMenuItem onClick={() => handleEdit(song)}>
                           <Pencil className="mr-2 h-4 w-4" />
                           Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleExport(song)}>
+                          <FileDown className="mr-2 h-4 w-4" />
+                          Export as JSON
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem

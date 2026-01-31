@@ -400,7 +400,7 @@ export function AddSongDialog({
         artist: artist.trim(),
         key: songKey.trim() || undefined,
         tempo: tempo.trim() || undefined,
-        lyrics: lyrics.trim() || undefined,
+        lyrics: lyrics || undefined,
         musicType: resolvedMusicType,
         musicData,
         musicFileName,

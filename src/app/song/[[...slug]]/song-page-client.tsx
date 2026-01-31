@@ -41,6 +41,7 @@ import {
   MoreVertical,
   Home,
   Pencil,
+  FileDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -574,6 +575,36 @@ export default function SongPageClient() {
     }
   };
 
+  const handleExport = () => {
+    if (!song) return;
+    // Create a clean export object (excluding internal id and timestamps)
+    const exportData = {
+      title: song.title,
+      artist: song.artist,
+      key: song.key,
+      tempo: song.tempo,
+      lyrics: song.lyrics,
+      isXmas: song.isXmas,
+      isMovie: song.isMovie,
+      isFavourite: song.isFavourite,
+      musicType: song.musicType,
+      musicData: song.musicData,
+      musicFileName: song.musicFileName,
+      isPublicDomain: song.isPublicDomain,
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${song.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`Exported "${song.title}"`);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -969,18 +1000,9 @@ export default function SongPageClient() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-                            {theme === "dark" ? (
-                              <>
-                                <Sun className="h-4 w-4 mr-2" />
-                                Light Mode
-                              </>
-                            ) : (
-                              <>
-                                <Moon className="h-4 w-4 mr-2" />
-                                Dark Mode
-                              </>
-                            )}
+                          <DropdownMenuItem onClick={handleToggleFavourite}>
+                            <Heart className={cn("h-4 w-4 mr-2", song.isFavourite && "fill-current")} />
+                            {song.isFavourite ? "Remove from Favourites" : "Add to Favourites"}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={toggleLyricsFullscreen}>
                             {isLyricsFullscreen ? (
@@ -995,14 +1017,27 @@ export default function SongPageClient() {
                               </>
                             )}
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+                            {theme === "dark" ? (
+                              <>
+                                <Sun className="h-4 w-4 mr-2" />
+                                Light Mode
+                              </>
+                            ) : (
+                              <>
+                                <Moon className="h-4 w-4 mr-2" />
+                                Dark Mode
+                              </>
+                            )}
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
                             <Edit3 className="h-4 w-4 mr-2" />
                             Edit Song
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleToggleFavourite}>
-                            <Heart className={cn("h-4 w-4 mr-2", song.isFavourite && "fill-current")} />
-                            {song.isFavourite ? "Remove from Favourites" : "Add to Favourites"}
+                          <DropdownMenuItem onClick={handleExport}>
+                            <FileDown className="h-4 w-4 mr-2" />
+                            Export Song
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -1286,6 +1321,10 @@ export default function SongPageClient() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem onClick={handleToggleFavourite}>
+                            <Heart className={cn("h-4 w-4 mr-2", song.isFavourite && "fill-current")} />
+                            {song.isFavourite ? "Remove from Favourites" : "Add to Favourites"}
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
                             {theme === "dark" ? (
                               <>
@@ -1299,13 +1338,14 @@ export default function SongPageClient() {
                               </>
                             )}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleToggleFavourite}>
-                            <Heart className={cn("h-4 w-4 mr-2", song.isFavourite && "fill-current")} />
-                            {song.isFavourite ? "Remove from Favourites" : "Add to Favourites"}
-                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
                             <Edit3 className="h-4 w-4 mr-2" />
                             Edit Song
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleExport}>
+                            <FileDown className="h-4 w-4 mr-2" />
+                            Export Song
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

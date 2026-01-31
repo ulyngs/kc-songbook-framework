@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { Song, getAllSongs, deleteSong } from "@/lib/db";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { Song, getAllSongs, deleteSong, addSong } from "@/lib/db";
 import { seedExampleSongs } from "@/lib/seed-data";
 import { SongList } from "@/components/song-list";
 import { Header } from "@/components/header";
@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Lock, Download, Moon, Sun } from "lucide-react";
+import { Plus, Lock, Download, Moon, Sun, FileUp } from "lucide-react";
 import { useTheme } from "next-themes";
 
 export type SortField = "title" | "artist";
@@ -33,6 +33,7 @@ export default function Home() {
   const [christmasMode, setChristmasMode] = useState(false);
   const [addDialogMode, setAddDialogMode] = useState<"single" | "kc-collection">("single");
   const { theme, setTheme } = useTheme();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load songs from IndexedDB
   const loadSongs = async () => {
@@ -121,6 +122,48 @@ export default function Home() {
     loadSongs();
   };
 
+  const handleImportSong = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const songData = JSON.parse(text);
+
+      // Validate required fields
+      if (!songData.title || !songData.artist) {
+        alert("Invalid song file: missing title or artist");
+        return;
+      }
+
+      await addSong({
+        title: songData.title,
+        artist: songData.artist,
+        key: songData.key,
+        tempo: songData.tempo,
+        lyrics: songData.lyrics,
+        isXmas: songData.isXmas,
+        isMovie: songData.isMovie,
+        isFavourite: songData.isFavourite,
+        musicType: songData.musicType,
+        musicData: songData.musicData,
+        musicFileName: songData.musicFileName,
+        isPublicDomain: songData.isPublicDomain,
+      });
+
+      loadSongs();
+      alert(`Imported "${songData.title}" successfully!`);
+    } catch (error) {
+      console.error("Failed to import song:", error);
+      alert("Failed to import song. Please check the file format.");
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -181,6 +224,15 @@ export default function Home() {
           onDataChanged={loadSongs}
         />
 
+        {/* Hidden file input for import */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept=".json"
+          onChange={handleImportSong}
+          className="hidden"
+        />
+
         {/* Floating Action Button */}
         <div className="fixed bottom-6 right-6 z-50">
           <DropdownMenu modal={false}>
@@ -203,6 +255,13 @@ export default function Home() {
               >
                 <Plus className="h-5 w-5 mr-2" />
                 Add Single Song
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => fileInputRef.current?.click()}
+                className="text-base py-2 text-left"
+              >
+                <FileUp className="h-5 w-5 mr-2" />
+                Import Single Song
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {

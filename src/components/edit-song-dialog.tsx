@@ -488,7 +488,7 @@ export function EditSongDialog({
                 artist: artist.trim(),
                 key: songKey.trim() || undefined,
                 tempo: tempo.trim() || undefined,
-                lyrics: lyrics.trim() || undefined,
+                lyrics: lyrics || undefined,
                 isXmas,
             };
 
@@ -534,7 +534,7 @@ export function EditSongDialog({
                 }
             } else if (musicType === "text") {
                 if (musicText.trim()) {
-                    updates.musicData = musicText.trim();
+                    updates.musicData = musicText;
                     updates.musicType = "text";
                     updates.musicFileName = undefined;
                 } else {
