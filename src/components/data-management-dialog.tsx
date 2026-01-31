@@ -14,6 +14,7 @@ import {
   importSongsFromFile,
   clearAllSongs,
   getAllSongs,
+  updateSong,
 } from "@/lib/db";
 import {
   Download,
@@ -40,10 +41,12 @@ export function DataManagementDialog({
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingMetadata, setIsExportingMetadata] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isImportingMetadata, setIsImportingMetadata] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [songCount, setSongCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const metadataInputRef = useRef<HTMLInputElement>(null);
 
   // Load song count when dialog opens
   const loadSongCount = async () => {
@@ -116,6 +119,63 @@ export function DataManagementDialog({
       setIsImporting(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleImportMetadata = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImportingMetadata(true);
+    try {
+      const text = await file.text();
+      const metadataList = JSON.parse(text);
+
+      if (!Array.isArray(metadataList)) {
+        throw new Error("Invalid metadata file format");
+      }
+
+      // Get all existing songs
+      const existingSongs = await getAllSongs();
+
+      // Create a lookup map by normalized title+artist
+      const songMap = new Map<string, typeof existingSongs[0]>();
+      for (const song of existingSongs) {
+        const key = `${song.title.toLowerCase().trim()}|${song.artist.toLowerCase().trim()}`;
+        songMap.set(key, song);
+      }
+
+      let updatedCount = 0;
+      for (const meta of metadataList) {
+        if (!meta.title || !meta.artist) continue;
+
+        const key = `${meta.title.toLowerCase().trim()}|${meta.artist.toLowerCase().trim()}`;
+        const existingSong = songMap.get(key);
+
+        if (existingSong) {
+          // Update only metadata fields
+          await updateSong(existingSong.id, {
+            key: meta.key,
+            tempo: meta.tempo,
+            isXmas: meta.isXmas,
+            isMovie: meta.isMovie,
+            isFavourite: meta.isFavourite,
+            isPublicDomain: meta.isPublicDomain,
+          });
+          updatedCount++;
+        }
+      }
+
+      toast.success(`Updated metadata for ${updatedCount} song${updatedCount !== 1 ? 's' : ''}!`);
+      onDataChanged();
+    } catch (error) {
+      console.error("Metadata import failed:", error);
+      toast.error("Failed to import metadata. Make sure it's a valid JSON file.");
+    } finally {
+      setIsImportingMetadata(false);
+      if (metadataInputRef.current) {
+        metadataInputRef.current.value = "";
       }
     }
   };
@@ -210,24 +270,46 @@ export function DataManagementDialog({
                 Restore songs from a backup file. Existing songs with the same
                 ID will be updated.
               </p>
-              <Button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isImporting}
-                size="sm"
-                variant="outline"
-              >
-                {isImporting ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Upload className="h-4 w-4 mr-2" />
-                )}
-                Choose File
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isImporting}
+                  size="sm"
+                  variant="outline"
+                >
+                  {isImporting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-2" />
+                  )}
+                  Full Backup
+                </Button>
+                <Button
+                  onClick={() => metadataInputRef.current?.click()}
+                  disabled={isImportingMetadata || songCount === 0}
+                  size="sm"
+                  variant="outline"
+                >
+                  {isImportingMetadata ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4 mr-2" />
+                  )}
+                  Metadata Only
+                </Button>
+              </div>
               <input
                 ref={fileInputRef}
                 type="file"
                 accept=".json"
                 onChange={handleImport}
+                className="hidden"
+              />
+              <input
+                ref={metadataInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImportMetadata}
                 className="hidden"
               />
             </div>
