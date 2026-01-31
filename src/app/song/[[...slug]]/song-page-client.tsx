@@ -205,6 +205,9 @@ export default function SongPageClient() {
   // Lyrics fullscreen (expanded) state
   const [isLyricsFullscreen, setIsLyricsFullscreenState] = useState(false);
 
+  // Music fullscreen (expanded) state
+  const [isMusicFullscreen, setIsMusicFullscreenState] = useState(false);
+
   // Wrapper to persist lyrics fullscreen to localStorage
   const setIsLyricsFullscreen = useCallback((value: boolean) => {
     setIsLyricsFullscreenState(value);
@@ -213,10 +216,25 @@ export default function SongPageClient() {
     }
   }, []);
 
+  // Wrapper to persist music fullscreen to localStorage
+  const setIsMusicFullscreen = useCallback((value: boolean) => {
+    setIsMusicFullscreenState(value);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("songbook-music-fullscreen", String(value));
+    }
+  }, []);
+
   // Load saved lyrics fullscreen mode on mount
   useEffect(() => {
     const saved = getInitialLyricsFullscreen();
     setIsLyricsFullscreenState(saved);
+    // Also load music fullscreen
+    if (typeof window !== "undefined") {
+      const musicSaved = localStorage.getItem("songbook-music-fullscreen");
+      if (musicSaved === "true") {
+        setIsMusicFullscreenState(true);
+      }
+    }
   }, []);
 
   // PDF zoom state
@@ -232,17 +250,27 @@ export default function SongPageClient() {
     setIsLyricsFullscreen(!isLyricsFullscreen);
   }, [isLyricsFullscreen, setIsLyricsFullscreen]);
 
+  // Toggle music fullscreen
+  const toggleMusicFullscreen = useCallback(() => {
+    setIsMusicFullscreen(!isMusicFullscreen);
+  }, [isMusicFullscreen, setIsMusicFullscreen]);
+
   // Exit fullscreen on ESC key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isLyricsFullscreen) {
-        setIsLyricsFullscreen(false);
+      if (e.key === "Escape") {
+        if (isLyricsFullscreen) {
+          setIsLyricsFullscreen(false);
+        }
+        if (isMusicFullscreen) {
+          setIsMusicFullscreen(false);
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isLyricsFullscreen, setIsLyricsFullscreen]);
+  }, [isLyricsFullscreen, setIsLyricsFullscreen, isMusicFullscreen, setIsMusicFullscreen]);
 
   const handleZoomChange = useCallback((newZoom: number) => {
     const clampedZoom = Math.max(0.1, Math.min(5, newZoom));
@@ -1103,6 +1131,7 @@ export default function SongPageClient() {
                           data={song.musicData!}
                           fileName={song.musicFileName}
                           isImmersive={true}
+                          isFullscreen={isMusicFullscreen}
                           zoom={pdfZoom}
                           onZoomChange={handleZoomChange}
                           scrollRef={musicScrollRef}
@@ -1325,6 +1354,19 @@ export default function SongPageClient() {
                             <Heart className={cn("h-4 w-4 mr-2", song.isFavourite && "fill-current")} />
                             {song.isFavourite ? "Remove from Favourites" : "Add to Favourites"}
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={toggleMusicFullscreen}>
+                            {isMusicFullscreen ? (
+                              <>
+                                <Minimize2 className="h-4 w-4 mr-2" />
+                                Exit Full Width
+                              </>
+                            ) : (
+                              <>
+                                <Maximize2 className="h-4 w-4 mr-2" />
+                                Full Width
+                              </>
+                            )}
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
                             {theme === "dark" ? (
                               <>
@@ -1388,6 +1430,7 @@ function MusicViewer({
   data,
   fileName,
   isImmersive = false,
+  isFullscreen = false,
   zoom,
   onZoomChange,
   scrollRef,
@@ -1400,6 +1443,7 @@ function MusicViewer({
   data: string;
   fileName?: string;
   isImmersive?: boolean;
+  isFullscreen?: boolean;
   zoom?: number;
   onZoomChange?: (zoom: number) => void;
   scrollRef?: React.RefObject<HTMLDivElement | null>;
@@ -1606,8 +1650,16 @@ function MusicViewer({
         if (scrollRef) {
           scrollRef.current = node;
         }
-      }} className="flex justify-center py-8 px-4 h-full overflow-auto">
-        <div className="relative bg-card rounded-xl border border-border/50 p-6 sm:p-8 shadow-sm h-fit">
+      }} className={cn(
+        "flex h-full overflow-auto",
+        isFullscreen ? "p-0" : "justify-center py-8 px-4"
+      )}>
+        <div className={cn(
+          "relative bg-card shadow-sm h-fit",
+          isFullscreen
+            ? "w-full rounded-none border-0 p-4 sm:p-6"
+            : "rounded-xl border border-border/50 p-6 sm:p-8"
+        )}>
           {/* Tempo badge in top-right corner - clickable for metronome if numeric */}
           {tempo && (() => {
             const hasNumericBpm = /\d+/.test(tempo);

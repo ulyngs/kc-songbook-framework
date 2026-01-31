@@ -390,7 +390,7 @@ function SectionRenderer({ section, fontSize }: { section: Section; fontSize?: n
                                 "text-blue-600 dark:text-blue-400 whitespace-pre font-mono",
                                 isChordFollowedByLyrics && "mb-[-0.15em]"
                             )}
-                            style={style}
+                            style={{ ...style, fontWeight: 700 }}
                         >
                             {renderChordLineWithTimeSignatures(line.content)}
                         </div>
