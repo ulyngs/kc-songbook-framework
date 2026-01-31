@@ -1,5 +1,11 @@
 use tauri::Manager;
 
+#[cfg(target_os = "macos")]
+use tauri::{TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
+
+#[cfg(not(target_os = "macos"))]
+use tauri::{WebviewUrl, WebviewWindowBuilder};
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -10,13 +16,34 @@ pub fn run() {
                 .level(log::LevelFilter::Info)
                 .build(),
         )
-        .setup(|_app| {
-            // Devtools can be opened via right-click -> Inspect Element
-            // Uncomment below for auto-open during debugging:
-            // #[cfg(debug_assertions)]
-            // if let Some(window) = _app.get_webview_window("main") {
-            //     window.open_devtools();
-            // }
+        .setup(|app| {
+            // Create main window with transparent titlebar on macOS
+            #[cfg(target_os = "macos")]
+            {
+                let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+                    .title("")
+                    .inner_size(1024.0, 768.0)
+                    .min_inner_size(400.0, 300.0)
+                    .resizable(true)
+                    .center()
+                    .title_bar_style(TitleBarStyle::Overlay);
+
+                win_builder.build()?;
+            }
+
+            // Create main window on other platforms
+            #[cfg(not(target_os = "macos"))]
+            {
+                let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+                    .title("KC Songbook")
+                    .inner_size(1024.0, 768.0)
+                    .min_inner_size(400.0, 300.0)
+                    .resizable(true)
+                    .center();
+
+                win_builder.build()?;
+            }
+
             Ok(())
         })
         .run(tauri::generate_context!())

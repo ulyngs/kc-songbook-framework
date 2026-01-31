@@ -10,17 +10,7 @@
     "beforeBuildCommand": "npm run build:tauri"
   },
   "app": {
-    "windows": [
-      {
-        "title": "KC Songbook",
-        "width": 1024,
-        "height": 768,
-        "minWidth": 400,
-        "minHeight": 300,
-        "resizable": true,
-        "fullscreen": false
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://songbook.karaokecollective.com https://*.tauri.localhost"
     }
