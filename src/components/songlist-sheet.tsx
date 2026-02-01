@@ -219,7 +219,7 @@ export function SonglistSheet({ currentSongId }: SonglistSheetProps) {
                         <div className="flex-1 min-w-0">
                           <p
                             className={cn(
-                              "text-sm font-medium truncate flex items-center gap-1.5",
+                              "text-sm font-medium flex items-center gap-1.5",
                               song.id === currentSongId && "text-primary"
                             )}
                           >
@@ -232,14 +232,6 @@ export function SonglistSheet({ currentSongId }: SonglistSheetProps) {
                             {song.artist}
                           </p>
                         </div>
-                        {song.key && (
-                          <Badge
-                            variant="secondary"
-                            className="font-mono text-xs shrink-0"
-                          >
-                            {song.key}
-                          </Badge>
-                        )}
                       </div>
                     </button>
                   ))}
