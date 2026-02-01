@@ -92,10 +92,30 @@ function getInitialFontSize(): number {
   return 22; // Default font size
 }
 
-// Get initial lyrics fullscreen mode from localStorage
+// Get initial lyrics fullscreen mode from localStorage, default to true on small screens
 function getInitialLyricsFullscreen(): boolean {
   if (typeof window !== "undefined") {
-    return localStorage.getItem("songbook-lyrics-fullscreen") === "true";
+    const saved = localStorage.getItem("songbook-lyrics-fullscreen");
+    // If user has explicitly set a preference, respect it
+    if (saved !== null) {
+      return saved === "true";
+    }
+    // Default to true on small screens (under 768px)
+    return window.innerWidth < 768;
+  }
+  return false;
+}
+
+// Get initial music fullscreen mode from localStorage, default to true on small screens
+function getInitialMusicFullscreen(): boolean {
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("songbook-music-fullscreen");
+    // If user has explicitly set a preference, respect it
+    if (saved !== null) {
+      return saved === "true";
+    }
+    // Default to true on small screens (under 768px)
+    return window.innerWidth < 768;
   }
   return false;
 }
@@ -232,15 +252,11 @@ export default function SongPageClient() {
 
   // Load saved lyrics fullscreen mode on mount
   useEffect(() => {
-    const saved = getInitialLyricsFullscreen();
-    setIsLyricsFullscreenState(saved);
+    const lyricsSaved = getInitialLyricsFullscreen();
+    setIsLyricsFullscreenState(lyricsSaved);
     // Also load music fullscreen
-    if (typeof window !== "undefined") {
-      const musicSaved = localStorage.getItem("songbook-music-fullscreen");
-      if (musicSaved === "true") {
-        setIsMusicFullscreenState(true);
-      }
-    }
+    const musicSaved = getInitialMusicFullscreen();
+    setIsMusicFullscreenState(musicSaved);
   }, []);
 
   // PDF zoom state
@@ -863,8 +879,8 @@ export default function SongPageClient() {
                     <div
                       ref={showGenreWheel ? undefined : lyricsRefCallback}
                       className={cn(
-                        "flex-1 p-8 sm:p-12 overflow-y-auto",
-                        isLyricsFullscreen && "pl-12 sm:pl-20"
+                        "flex-1 p-4 pt-8 sm:p-12 overflow-y-auto",
+                        isLyricsFullscreen && "pl-6 sm:pl-20"
                       )}
                       style={{ touchAction: "pan-y" }}
                     >
@@ -918,14 +934,14 @@ export default function SongPageClient() {
 
                     {/* Lyrics controls - bottom bar */}
                     <div
-                      className="flex items-center justify-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 border-t border-border/50 bg-card/90 backdrop-blur-sm w-full overflow-visible"
+                      className="flex items-center justify-center flex-wrap gap-1 sm:gap-4 px-1 sm:px-4 py-1 sm:py-2 border-t border-border/50 bg-card/90 backdrop-blur-sm w-full"
                       style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
                     >
                       {/* Songlist button */}
                       <SonglistSheet currentSongId={song.id} />
 
-                      {/* Divider */}
-                      <div className="h-6 w-px bg-border" />
+                      {/* Divider - hidden on mobile */}
+                      <div className="hidden sm:block h-6 w-px bg-border" />
 
 
                       {/* Font size controls */}
@@ -1102,11 +1118,11 @@ export default function SongPageClient() {
                         </div>
                       </div>
 
-                      {/* View toggle - only show if both lyrics and music are available */}
+                      {/* View toggle - only show if both lyrics and music are available - hidden on mobile */}
                       {hasLyrics && hasMusic && (
-                        <>
+                        <div className="hidden sm:flex items-center">
                           {/* Divider */}
-                          <div className="h-6 w-px bg-border" />
+                          <div className="h-6 w-px bg-border mr-2" />
 
                           <ToggleGroup
                             type="single"
@@ -1129,11 +1145,11 @@ export default function SongPageClient() {
                               <Music className="h-5 w-5" />
                             </ToggleGroupItem>
                           </ToggleGroup>
-                        </>
+                        </div>
                       )}
 
-                      {/* Home button */}
-                      <Link href="/">
+                      {/* Home button - hidden on mobile */}
+                      <Link href="/" className="hidden sm:block">
                         <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-foreground">
                           <Home className="h-5 w-5" />
                         </Button>
@@ -1147,6 +1163,36 @@ export default function SongPageClient() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
+                          {/* View toggle options - only on mobile */}
+                          {hasLyrics && hasMusic && (
+                            <>
+                              <DropdownMenuItem
+                                onClick={() => setViewMode("lyrics")}
+                                className="sm:hidden"
+                              >
+                                <LetterText className={cn("h-4 w-4 mr-2", viewMode === "lyrics" && "text-primary")} />
+                                View Lyrics
+                                {viewMode === "lyrics" && <span className="ml-auto">✓</span>}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setViewMode("music")}
+                                className="sm:hidden"
+                              >
+                                <Music className={cn("h-4 w-4 mr-2", viewMode === "music" && "text-primary")} />
+                                View Music
+                                {viewMode === "music" && <span className="ml-auto">✓</span>}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator className="sm:hidden" />
+                            </>
+                          )}
+                          {/* Home option - only on mobile */}
+                          <DropdownMenuItem asChild className="sm:hidden">
+                            <Link href="/">
+                              <Home className="h-4 w-4 mr-2" />
+                              Home
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator className="sm:hidden" />
                           <DropdownMenuItem onClick={handleToggleFavourite}>
                             <Heart className={cn("h-4 w-4 mr-2", song.isFavourite && "fill-current")} />
                             {song.isFavourite ? "Remove from Favourites" : "Add to Favourites"}
@@ -1264,14 +1310,14 @@ export default function SongPageClient() {
 
                     {/* Music controls - bottom bar */}
                     <div
-                      className="flex items-center justify-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 border-t border-border/50 bg-card/90 backdrop-blur-sm w-full overflow-visible shrink-0"
+                      className="flex items-center justify-center flex-wrap gap-1 sm:gap-4 px-1 sm:px-4 py-1 sm:py-2 border-t border-border/50 bg-card/90 backdrop-blur-sm w-full shrink-0"
                       style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
                     >
                       {/* Songlist button */}
                       <SonglistSheet currentSongId={song.id} />
 
-                      {/* Divider */}
-                      <div className="h-6 w-px bg-border" />
+                      {/* Divider - hidden on mobile */}
+                      <div className="hidden sm:block h-6 w-px bg-border" />
 
                       {/* PDF Zoom controls */}
                       <div className="flex items-center border rounded-md bg-card">
@@ -1315,7 +1361,7 @@ export default function SongPageClient() {
                             title="Click to enter custom zoom"
                           >
                             <ZoomIn className="h-5 w-5 text-muted-foreground" />
-                            <span>{Math.round(pdfZoom * 100)}%</span>
+                            <span className="hidden sm:inline">{Math.round(pdfZoom * 100)}%</span>
                           </button>
                         )}
 
@@ -1331,8 +1377,8 @@ export default function SongPageClient() {
                         </Button>
                       </div>
 
-                      {/* Divider */}
-                      <div className="h-6 w-px bg-border" />
+                      {/* Divider - hidden on mobile */}
+                      <div className="hidden sm:block h-6 w-px bg-border" />
 
                       {/* Auto-scroll controls */}
                       <div className="relative">
@@ -1432,11 +1478,11 @@ export default function SongPageClient() {
                         </div>
                       </div>
 
-                      {/* View toggle - only show if both lyrics and music are available */}
+                      {/* View toggle - only show if both lyrics and music are available - hidden on mobile */}
                       {hasLyrics && hasMusic && (
-                        <>
+                        <div className="hidden sm:flex items-center">
                           {/* Divider */}
-                          <div className="h-6 w-px bg-border" />
+                          <div className="h-6 w-px bg-border mr-2" />
 
                           <ToggleGroup
                             type="single"
@@ -1459,11 +1505,11 @@ export default function SongPageClient() {
                               <Music className="h-5 w-5" />
                             </ToggleGroupItem>
                           </ToggleGroup>
-                        </>
+                        </div>
                       )}
 
-                      {/* Home button */}
-                      <Link href="/">
+                      {/* Home button - hidden on mobile */}
+                      <Link href="/" className="hidden sm:block">
                         <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-foreground">
                           <Home className="h-5 w-5" />
                         </Button>
@@ -1477,6 +1523,36 @@ export default function SongPageClient() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
+                          {/* View toggle options - only on mobile */}
+                          {hasLyrics && hasMusic && (
+                            <>
+                              <DropdownMenuItem
+                                onClick={() => setViewMode("lyrics")}
+                                className="sm:hidden"
+                              >
+                                <LetterText className={cn("h-4 w-4 mr-2", viewMode === "lyrics" && "text-primary")} />
+                                View Lyrics
+                                {viewMode === "lyrics" && <span className="ml-auto">✓</span>}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setViewMode("music")}
+                                className="sm:hidden"
+                              >
+                                <Music className={cn("h-4 w-4 mr-2", viewMode === "music" && "text-primary")} />
+                                View Music
+                                {viewMode === "music" && <span className="ml-auto">✓</span>}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator className="sm:hidden" />
+                            </>
+                          )}
+                          {/* Home option - only on mobile */}
+                          <DropdownMenuItem asChild className="sm:hidden">
+                            <Link href="/">
+                              <Home className="h-4 w-4 mr-2" />
+                              Home
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator className="sm:hidden" />
                           <DropdownMenuItem onClick={handleToggleFavourite}>
                             <Heart className={cn("h-4 w-4 mr-2", song.isFavourite && "fill-current")} />
                             {song.isFavourite ? "Remove from Favourites" : "Add to Favourites"}
