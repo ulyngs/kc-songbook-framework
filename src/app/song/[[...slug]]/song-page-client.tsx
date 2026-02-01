@@ -812,7 +812,7 @@ export default function SongPageClient() {
                         {/* Song title and artist header */}
                         <div className="text-center mb-6">
                           <h2 className="font-bold leading-tight">{song.title}</h2>
-                          <p className="text-muted-foreground italic mt-1" style={{ fontSize: `${lyricsFontSize * 0.75}px` }}>
+                          <p className="text-muted-foreground italic mt-0.5" style={{ fontSize: `${lyricsFontSize * 0.75}px` }}>
                             {song.isMovie ? 'from' : 'by'} {song.artist}
                           </p>
                         </div>
@@ -1701,7 +1701,7 @@ function MusicViewer({
           {title && (
             <div className="text-center mb-6">
               <h2 className="font-bold leading-tight" style={{ fontSize: `${fontSize * 1.5}px` }}>{title}</h2>
-              <p className="text-muted-foreground italic mt-0.5" style={{ fontSize: `${fontSize * 0.85}px` }}>
+              <p className="text-muted-foreground italic" style={{ fontSize: `${fontSize * 0.85}px` }}>
                 {isMovie ? 'from' : 'by'} {artist}
               </p>
             </div>
