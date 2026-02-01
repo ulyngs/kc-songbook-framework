@@ -441,8 +441,15 @@ export function AddSongDialog({
           "overflow-y-auto transition-all duration-200",
           isEditorFullscreen
             ? "!max-w-[100vw] !w-[100vw] !max-h-[100vh] !h-[100vh] !rounded-none !translate-x-[-50%] !translate-y-[-50%]"
-            : cn("max-h-[90vh]", musicType === "text" ? "sm:max-w-5xl" : "sm:max-w-2xl")
+            : cn(
+              // Mobile: fullscreen
+              "max-w-[100vw] w-[100vw] max-h-[100vh] h-[100vh] rounded-none",
+              // Desktop: normal dialog
+              "sm:max-h-[90vh] sm:h-auto sm:rounded-lg",
+              musicType === "text" ? "sm:max-w-5xl sm:w-auto" : "sm:max-w-2xl sm:w-auto"
+            )
         )}
+        style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
         resizable={musicType === "text" && !isEditorFullscreen}
       >
         <DialogHeader>
@@ -488,7 +495,7 @@ export function AddSongDialog({
             </div>
           </form>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5 overflow-x-hidden max-w-full">
             {/* Title & Artist */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

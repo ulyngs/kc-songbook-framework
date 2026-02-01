@@ -807,8 +807,8 @@ export default function SongPageClient() {
                           onMouseDown={() => startFontSizeRepeat(-2)}
                           onMouseUp={stopFontSizeRepeat}
                           onMouseLeave={stopFontSizeRepeat}
-                          onTouchStart={() => startFontSizeRepeat(-2)}
-                          onTouchEnd={stopFontSizeRepeat}
+                          onTouchStart={(e) => { e.preventDefault(); startFontSizeRepeat(-2); }}
+                          onTouchEnd={(e) => { e.preventDefault(); stopFontSizeRepeat(); }}
                           disabled={lyricsFontSize <= 8}
                           title="Decrease font size (hold to repeat)"
                         >
@@ -828,8 +828,8 @@ export default function SongPageClient() {
                           onMouseDown={() => startFontSizeRepeat(2)}
                           onMouseUp={stopFontSizeRepeat}
                           onMouseLeave={stopFontSizeRepeat}
-                          onTouchStart={() => startFontSizeRepeat(2)}
-                          onTouchEnd={stopFontSizeRepeat}
+                          onTouchStart={(e) => { e.preventDefault(); startFontSizeRepeat(2); }}
+                          onTouchEnd={(e) => { e.preventDefault(); stopFontSizeRepeat(); }}
                           disabled={lyricsFontSize >= 120}
                           title="Increase font size (hold to repeat)"
                         >
@@ -879,10 +879,13 @@ export default function SongPageClient() {
                     <div
                       ref={showGenreWheel ? undefined : lyricsRefCallback}
                       className={cn(
-                        "flex-1 p-4 pt-8 sm:p-12 overflow-y-auto",
+                        "flex-1 p-4 sm:p-12 overflow-y-auto",
                         isLyricsFullscreen && "pl-6 sm:pl-20"
                       )}
-                      style={{ touchAction: "pan-y" }}
+                      style={{
+                        touchAction: "pan-y",
+                        paddingTop: 'max(2rem, env(safe-area-inset-top))'
+                      }}
                     >
                       {showGenreWheel ? (
                         /* Genre Wheel View */
@@ -896,7 +899,7 @@ export default function SongPageClient() {
                         /* Lyrics View */
                         <div className="lyrics-text font-sans max-w-none" style={{ fontSize: `${lyricsFontSize}px` }}>
                           {/* Song title and artist header with wheel button */}
-                          <div className="text-center mb-6 relative">
+                          <div className="text-center mb-3 relative">
                             <div className="flex items-center justify-center gap-4">
                               <h2 className="font-bold leading-tight">{song.title}</h2>
                               <Button
@@ -918,16 +921,18 @@ export default function SongPageClient() {
                             </p>
                           </div>
 
-                          <ReactMarkdown
-                            components={{
-                              p: ({ children }) => <p className="whitespace-pre-wrap mb-0 last:mb-0" style={{ lineHeight: 1.4 }}>{children}</p>,
-                              em: ({ children }) => <em className="text-muted-foreground not-italic opacity-70">{children}</em>,
-                              strong: ({ children }) => <strong className="font-bold">{children}</strong>,
-                            }}
-                          >
-                            {/* Convert (*text*) to *(text)* for consistent markdown parsing */}
-                            {song.lyrics?.replace(/\(\*([^*]+)\*\)/g, '*($1)*')}
-                          </ReactMarkdown>
+                          {/* Render lyrics by splitting into verses */}
+                          <div style={{ lineHeight: 1.4 }}>
+                            {song.lyrics?.split(/\n\n+/).map((verse, i, arr) => (
+                              <p
+                                key={i}
+                                className="whitespace-pre-wrap"
+                                style={{ marginBottom: i < arr.length - 1 ? '0.8em' : 0 }}
+                              >
+                                {verse.replace(/\(\*([^*]+)\*\)/g, '*($1)*')}
+                              </p>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -961,8 +966,8 @@ export default function SongPageClient() {
                             onMouseDown={() => startFontSizeRepeat(-2)}
                             onMouseUp={stopFontSizeRepeat}
                             onMouseLeave={stopFontSizeRepeat}
-                            onTouchStart={() => startFontSizeRepeat(-2)}
-                            onTouchEnd={stopFontSizeRepeat}
+                            onTouchStart={(e) => { e.preventDefault(); startFontSizeRepeat(-2); }}
+                            onTouchEnd={(e) => { e.preventDefault(); stopFontSizeRepeat(); }}
                             disabled={lyricsFontSize <= 8}
                             title="Decrease font size (hold to repeat)"
                           >
@@ -1010,8 +1015,8 @@ export default function SongPageClient() {
                             onMouseDown={() => startFontSizeRepeat(2)}
                             onMouseUp={stopFontSizeRepeat}
                             onMouseLeave={stopFontSizeRepeat}
-                            onTouchStart={() => startFontSizeRepeat(2)}
-                            onTouchEnd={stopFontSizeRepeat}
+                            onTouchStart={(e) => { e.preventDefault(); startFontSizeRepeat(2); }}
+                            onTouchEnd={(e) => { e.preventDefault(); stopFontSizeRepeat(); }}
                             disabled={lyricsFontSize >= 120}
                             title="Increase font size (hold to repeat)"
                           >
@@ -1856,7 +1861,8 @@ function MusicViewer({
       }} className={cn(
         "flex h-full overflow-auto",
         isFullscreen ? "p-0" : "justify-center py-8 px-4"
-      )}>
+      )}
+        style={{ paddingTop: 'max(2rem, env(safe-area-inset-top))' }}>
         <div className={cn(
           "relative bg-card shadow-sm h-fit",
           isFullscreen
@@ -1870,11 +1876,12 @@ function MusicViewer({
               <button
                 onClick={toggleMetronome}
                 className={cn(
-                  "fixed top-4 right-4 z-50 px-3 py-1.5 rounded-md text-sm transition-colors cursor-pointer flex items-center gap-1 group shadow-lg",
+                  "fixed right-4 z-50 px-3 py-1.5 rounded-md text-sm transition-colors cursor-pointer flex items-center gap-1 group shadow-lg",
                   isMetronomeActive
                     ? "bg-primary text-primary-foreground"
                     : "bg-black/70 text-white hover:bg-black/80 backdrop-blur-sm"
                 )}
+                style={{ top: 'max(1rem, env(safe-area-inset-top))' }}
                 title={isMetronomeActive ? "Click to stop metronome" : "Click to start metronome"}
               >
                 <img src="/icons/noun-metronome-7664072-FFFFFF.svg" alt="" className="h-5 w-5" />
@@ -1888,7 +1895,7 @@ function MusicViewer({
                 )}
               </button>
             ) : (
-              <div className="fixed top-4 right-4 z-50 px-3 py-1.5 rounded-md text-sm bg-black/70 text-white shadow-lg backdrop-blur-sm flex items-center gap-1">
+              <div className="fixed right-4 z-50 px-3 py-1.5 rounded-md text-sm bg-black/70 text-white shadow-lg backdrop-blur-sm flex items-center gap-1" style={{ top: 'max(1rem, env(safe-area-inset-top))' }}>
                 <img src="/icons/noun-metronome-7664072-FFFFFF.svg" alt="" className="h-5 w-5" />
                 {tempo}
               </div>
@@ -1954,6 +1961,7 @@ function MusicViewer({
         style={{
           height: isImmersive ? '100vh' : 'calc(100vh - 4rem)',
           touchAction: "pan-x pan-y",
+          paddingTop: 'max(1rem, env(safe-area-inset-top))',
         }}
       >
         {/* Tempo badge overlay - fixed in top right corner */}
@@ -1963,11 +1971,12 @@ function MusicViewer({
             <button
               onClick={toggleMetronome}
               className={cn(
-                "fixed top-4 right-4 z-50 px-3 py-1.5 rounded-md text-sm transition-colors cursor-pointer flex items-center gap-1 group shadow-lg",
+                "fixed right-4 z-50 px-3 py-1.5 rounded-md text-sm transition-colors cursor-pointer flex items-center gap-1 group shadow-lg",
                 isMetronomeActive
                   ? "bg-primary text-primary-foreground"
                   : "bg-black/70 text-white hover:bg-black/80 backdrop-blur-sm"
               )}
+              style={{ top: 'max(1rem, env(safe-area-inset-top))' }}
               title={isMetronomeActive ? "Click to stop metronome" : "Click to start metronome"}
             >
               <img src="/icons/noun-metronome-7664072-FFFFFF.svg" alt="" className="h-5 w-5" />
@@ -1981,7 +1990,7 @@ function MusicViewer({
               )}
             </button>
           ) : (
-            <div className="fixed top-4 right-4 z-50 px-3 py-1.5 rounded-md text-sm bg-black/70 text-white shadow-lg backdrop-blur-sm flex items-center gap-1">
+            <div className="fixed right-4 z-50 px-3 py-1.5 rounded-md text-sm bg-black/70 text-white shadow-lg backdrop-blur-sm flex items-center gap-1" style={{ top: 'max(1rem, env(safe-area-inset-top))' }}>
               <img src="/icons/noun-metronome-7664072-FFFFFF.svg" alt="" className="h-5 w-5" />
               {tempo}
             </div>
@@ -2015,11 +2024,12 @@ function MusicViewer({
           <button
             onClick={toggleMetronome}
             className={cn(
-              "fixed top-4 right-4 z-50 px-3 py-1.5 rounded-md text-sm transition-colors cursor-pointer flex items-center gap-1 group shadow-lg",
+              "fixed right-4 z-50 px-3 py-1.5 rounded-md text-sm transition-colors cursor-pointer flex items-center gap-1 group shadow-lg",
               isMetronomeActive
                 ? "bg-primary text-primary-foreground"
                 : "bg-black/70 text-white hover:bg-black/80 backdrop-blur-sm"
             )}
+            style={{ top: 'max(1rem, env(safe-area-inset-top))' }}
             title={isMetronomeActive ? "Click to stop metronome" : "Click to start metronome"}
           >
             <img src="/icons/noun-metronome-7664072-FFFFFF.svg" alt="" className="h-5 w-5" />
@@ -2033,7 +2043,7 @@ function MusicViewer({
             )}
           </button>
         ) : (
-          <div className="fixed top-4 right-4 z-50 px-3 py-1.5 rounded-md text-sm bg-black/70 text-white shadow-lg backdrop-blur-sm flex items-center gap-1">
+          <div className="fixed right-4 z-50 px-3 py-1.5 rounded-md text-sm bg-black/70 text-white shadow-lg backdrop-blur-sm flex items-center gap-1" style={{ top: 'max(1rem, env(safe-area-inset-top))' }}>
             <img src="/icons/noun-metronome-7664072-FFFFFF.svg" alt="" className="h-5 w-5" />
             {tempo}
           </div>

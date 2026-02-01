@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ChordSheetRenderer } from "./chord-sheet-renderer";
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
@@ -28,7 +28,23 @@ export function ChordSheetEditor({
     fontSize = 14,
     onFullscreenChange,
 }: ChordSheetEditorProps) {
+    // Detect mobile for default view mode
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 640);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
     const [viewMode, setViewMode] = useState<ViewMode>("split");
+    // Default to edit mode on mobile
+    useEffect(() => {
+        if (isMobile && viewMode === "split") {
+            setViewMode("edit");
+        }
+    }, [isMobile]);
+
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [splitPosition, setSplitPosition] = useState(50); // percentage for left pane
     const [isDragging, setIsDragging] = useState(false);
@@ -214,7 +230,7 @@ export function ChordSheetEditor({
                     <div
                         ref={previewRef}
                         className={cn(
-                            "p-4 overflow-auto",
+                            "p-4 overflow-auto max-w-full",
                             viewMode !== "split" && "flex-1",
                             viewMode === "split" && "flex-1"
                         )}
@@ -223,7 +239,9 @@ export function ChordSheetEditor({
                         }}
                     >
                         {value ? (
-                            <ChordSheetRenderer text={value} fontSize={fontSize} />
+                            <div className="overflow-x-auto max-w-full">
+                                <ChordSheetRenderer text={value} fontSize={fontSize} />
+                            </div>
                         ) : (
                             <div className="text-muted-foreground/50 font-mono" style={{ fontSize: `${fontSize}px` }}>
                                 Preview will appear here...
@@ -237,14 +255,17 @@ export function ChordSheetEditor({
 
     if (isFullscreen) {
         return (
-            <div className="fixed inset-0 z-50 bg-card flex flex-col">
+            <div
+                className="fixed inset-0 z-50 bg-card flex flex-col"
+                style={{ paddingTop: 'env(safe-area-inset-top)' }}
+            >
                 {editorContent}
             </div>
         );
     }
 
     return (
-        <div className={cn("flex flex-col border rounded-lg overflow-hidden bg-card", className)}>
+        <div className={cn("flex flex-col border rounded-lg overflow-hidden bg-card max-w-full", className)}>
             {editorContent}
         </div>
     );

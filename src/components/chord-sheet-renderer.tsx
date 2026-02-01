@@ -434,7 +434,7 @@ export function ChordSheetRenderer({ text, className, fontSize }: ChordSheetRend
     const sections = parseText(text);
 
     return (
-        <div className={cn("font-mono", className)} style={{ tabSize: 8 }}>
+        <div className={cn("font-mono overflow-x-auto", className)} style={{ tabSize: 8 }}>
             {sections.map((section, idx) => (
                 <SectionRenderer key={idx} section={section} fontSize={fontSize} />
             ))}

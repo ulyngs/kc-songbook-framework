@@ -187,7 +187,10 @@ export function GenreWheel({ songTitle, songArtist, isMovie, onClose }: GenreWhe
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col pt-2 items-center bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 overflow-hidden"
+      style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}
+    >
       {/* Background effects */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_oklch(0.68_0.18_75)_0%,_transparent_50%)] opacity-5" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_oklch(0.65_0.15_75)_0%,_transparent_50%)] opacity-5" />
