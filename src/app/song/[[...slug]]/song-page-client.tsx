@@ -198,6 +198,10 @@ export default function SongPageClient() {
   const [isEditingSpeed, setIsEditingSpeed] = useState(false);
   const [speedInputValue, setSpeedInputValue] = useState("3");
 
+  // Track active adjustment for floating indicator
+  const [isAdjustingSpeed, setIsAdjustingSpeed] = useState(false);
+  const [isAdjustingFontSize, setIsAdjustingFontSize] = useState(false);
+
   // Touch state for pinch-to-zoom on lyrics
   const lyricsTouchStateRef = useRef<{
     initialDistance: number;
@@ -480,6 +484,7 @@ export default function SongPageClient() {
   const startSpeedRepeat = useCallback((delta: number) => {
     // Prevent double-triggering from touch+mouse events
     if (speedRepeatRef.current) return;
+    setIsAdjustingSpeed(true);
     // Immediately adjust once
     adjustSpeed(delta);
     // Start repeating after a short delay
@@ -496,6 +501,7 @@ export default function SongPageClient() {
       clearInterval(speedRepeatRef.current);
       speedRepeatRef.current = null;
     }
+    setIsAdjustingSpeed(false);
   }, []);
 
   // Handle speed input submit
@@ -509,6 +515,45 @@ export default function SongPageClient() {
     }
     setIsEditingSpeed(false);
   }, [speedInputValue, scrollSpeed]);
+
+  // Adjust font size helper - uses ref to always get latest value
+  const currentFontSizeRef = useRef(lyricsFontSize);
+  useEffect(() => {
+    currentFontSizeRef.current = lyricsFontSize;
+  }, [lyricsFontSize]);
+
+  // Hold-to-repeat for font size buttons
+  const fontSizeRepeatRef = useRef<NodeJS.Timeout | null>(null);
+  const fontSizeDeltaRef = useRef<number>(0);
+
+  const doFontSizeAdjust = useCallback(() => {
+    const newSize = Math.max(8, Math.min(120, currentFontSizeRef.current + fontSizeDeltaRef.current));
+    setLyricsFontSize(newSize);
+  }, [setLyricsFontSize]);
+
+  const startFontSizeRepeat = useCallback((delta: number) => {
+    // Prevent double-triggering from touch+mouse events
+    if (fontSizeRepeatRef.current) return;
+    setIsAdjustingFontSize(true);
+    fontSizeDeltaRef.current = delta;
+    // Immediately adjust once
+    doFontSizeAdjust();
+    // Start repeating after a short delay
+    fontSizeRepeatRef.current = setTimeout(() => {
+      fontSizeRepeatRef.current = setInterval(() => {
+        doFontSizeAdjust();
+      }, 100);
+    }, 300);
+  }, [doFontSizeAdjust]);
+
+  const stopFontSizeRepeat = useCallback(() => {
+    if (fontSizeRepeatRef.current) {
+      clearTimeout(fontSizeRepeatRef.current);
+      clearInterval(fontSizeRepeatRef.current);
+      fontSizeRepeatRef.current = null;
+    }
+    setIsAdjustingFontSize(false);
+  }, []);
 
   useEffect(() => {
     const loadSong = async () => {
@@ -741,28 +786,38 @@ export default function SongPageClient() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-r-none border-r"
-                          onClick={() => setLyricsFontSize(lyricsFontSize - 2)}
+                          className="h-10 w-10 rounded-r-none border-r select-none touch-manipulation"
+                          style={{ WebkitTouchCallout: 'none' }}
+                          onMouseDown={() => startFontSizeRepeat(-2)}
+                          onMouseUp={stopFontSizeRepeat}
+                          onMouseLeave={stopFontSizeRepeat}
+                          onTouchStart={() => startFontSizeRepeat(-2)}
+                          onTouchEnd={stopFontSizeRepeat}
                           disabled={lyricsFontSize <= 8}
-                          title="Decrease font size"
+                          title="Decrease font size (hold to repeat)"
                         >
-                          <Minus className="h-3.5 w-3.5" />
+                          <Minus className="h-5 w-5" />
                         </Button>
 
                         <div className="flex items-center gap-1.5 px-2 h-8 text-sm font-medium">
-                          <ALargeSmall className="h-4 w-4 text-muted-foreground" />
+                          <ALargeSmall className="h-5 w-5 text-muted-foreground" />
                           <span className="text-xs">{lyricsFontSize}</span>
                         </div>
 
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-l-none border-l"
-                          onClick={() => setLyricsFontSize(lyricsFontSize + 2)}
+                          className="h-10 w-10 rounded-l-none border-l select-none touch-manipulation"
+                          style={{ WebkitTouchCallout: 'none' }}
+                          onMouseDown={() => startFontSizeRepeat(2)}
+                          onMouseUp={stopFontSizeRepeat}
+                          onMouseLeave={stopFontSizeRepeat}
+                          onTouchStart={() => startFontSizeRepeat(2)}
+                          onTouchEnd={stopFontSizeRepeat}
                           disabled={lyricsFontSize >= 120}
-                          title="Increase font size"
+                          title="Increase font size (hold to repeat)"
                         >
-                          <Plus className="h-3.5 w-3.5" />
+                          <Plus className="h-5 w-5" />
                         </Button>
                       </div>
 
@@ -826,7 +881,7 @@ export default function SongPageClient() {
                         <div className="lyrics-text font-sans max-w-none" style={{ fontSize: `${lyricsFontSize}px` }}>
                           {/* Song title and artist header with wheel button */}
                           <div className="text-center mb-6 relative">
-                            <div className="flex items-center justify-center gap-2">
+                            <div className="flex items-center justify-center gap-4">
                               <h2 className="font-bold leading-tight">{song.title}</h2>
                               <Button
                                 variant="ghost"
@@ -838,11 +893,11 @@ export default function SongPageClient() {
                                 <img
                                   src="/icons/noun-fortune-wheel-7688040.svg"
                                   alt="Genre wheel"
-                                  className="h-10 w-10 opacity-60 hover:opacity-100 transition-opacity dark:invert dark:brightness-90"
+                                  className="h-14 w-14 opacity-60 hover:opacity-100 transition-opacity dark:invert dark:brightness-90"
                                 />
                               </Button>
                             </div>
-                            <p className="text-muted-foreground italic -mt-1" style={{ fontSize: `${lyricsFontSize * 0.75}px` }}>
+                            <p className="text-muted-foreground italic -mt-2" style={{ fontSize: `${lyricsFontSize * 0.75}px` }}>
                               {song.isMovie ? 'from' : 'by'} {song.artist}
                             </p>
                           </div>
@@ -863,7 +918,7 @@ export default function SongPageClient() {
 
                     {/* Lyrics controls - bottom bar */}
                     <div
-                      className="flex items-center justify-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 border-t border-border/50 bg-card/90 backdrop-blur-sm w-full overflow-x-auto"
+                      className="flex items-center justify-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 border-t border-border/50 bg-card/90 backdrop-blur-sm w-full overflow-visible"
                       style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
                     >
                       {/* Songlist button */}
@@ -872,152 +927,179 @@ export default function SongPageClient() {
                       {/* Divider */}
                       <div className="h-6 w-px bg-border" />
 
+
                       {/* Font size controls */}
-                      <div className="flex items-center border rounded-md bg-card">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-r-none border-r"
-                          onClick={() => setLyricsFontSize(lyricsFontSize - 2)}
-                          disabled={lyricsFontSize <= 8}
-                          title="Decrease font size"
-                        >
-                          <Minus className="h-3.5 w-3.5" />
-                        </Button>
-
-                        {isEditingFontSize ? (
-                          <Input
-                            type="number"
-                            value={fontSizeInputValue}
-                            onChange={(e) => setFontSizeInputValue(e.target.value)}
-                            onBlur={handleFontSizeInputSubmit}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                handleFontSizeInputSubmit();
-                              } else if (e.key === "Escape") {
-                                setFontSizeInputValue(String(lyricsFontSize));
-                                setIsEditingFontSize(false);
-                              }
-                            }}
-                            className="w-14 h-8 text-center text-sm px-1 border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            min={8}
-                            max={120}
-                            autoFocus
-                          />
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setFontSizeInputValue(String(lyricsFontSize));
-                              setIsEditingFontSize(true);
-                            }}
-                            className="flex items-center gap-1.5 px-2 h-8 text-sm font-medium hover:bg-accent rounded-none transition-colors"
-                            title="Click to enter custom font size"
-                          >
-                            <ALargeSmall className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-xs hidden sm:inline">{lyricsFontSize}</span>
-                          </button>
+                      <div className="relative">
+                        {/* Floating font size indicator */}
+                        {isAdjustingFontSize && (
+                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground px-3 py-1.5 rounded-lg shadow-lg text-lg font-bold animate-in fade-in zoom-in-95 duration-150">
+                            {lyricsFontSize}
+                          </div>
                         )}
+                        <div className="flex items-center border rounded-md bg-card">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 rounded-r-none border-r select-none touch-manipulation"
+                            style={{ WebkitTouchCallout: 'none' }}
+                            onMouseDown={() => startFontSizeRepeat(-2)}
+                            onMouseUp={stopFontSizeRepeat}
+                            onMouseLeave={stopFontSizeRepeat}
+                            onTouchStart={() => startFontSizeRepeat(-2)}
+                            onTouchEnd={stopFontSizeRepeat}
+                            disabled={lyricsFontSize <= 8}
+                            title="Decrease font size (hold to repeat)"
+                          >
+                            <Minus className="h-5 w-5" />
+                          </Button>
 
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-l-none border-l"
-                          onClick={() => setLyricsFontSize(lyricsFontSize + 2)}
-                          disabled={lyricsFontSize >= 120}
-                          title="Increase font size"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </Button>
+                          {isEditingFontSize ? (
+                            <Input
+                              type="number"
+                              value={fontSizeInputValue}
+                              onChange={(e) => setFontSizeInputValue(e.target.value)}
+                              onBlur={handleFontSizeInputSubmit}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  handleFontSizeInputSubmit();
+                                } else if (e.key === "Escape") {
+                                  setFontSizeInputValue(String(lyricsFontSize));
+                                  setIsEditingFontSize(false);
+                                }
+                              }}
+                              className="w-14 h-8 text-center text-sm px-1 border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              min={8}
+                              max={120}
+                              autoFocus
+                            />
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setFontSizeInputValue(String(lyricsFontSize));
+                                setIsEditingFontSize(true);
+                              }}
+                              className="flex items-center gap-1.5 px-2 h-8 text-sm font-medium hover:bg-accent rounded-none transition-colors"
+                              title="Click to enter custom font size"
+                            >
+                              <ALargeSmall className="h-5 w-5 text-muted-foreground" />
+                              <span className="text-xs hidden sm:inline">{lyricsFontSize}</span>
+                            </button>
+                          )}
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 rounded-l-none border-l select-none touch-manipulation"
+                            style={{ WebkitTouchCallout: 'none' }}
+                            onMouseDown={() => startFontSizeRepeat(2)}
+                            onMouseUp={stopFontSizeRepeat}
+                            onMouseLeave={stopFontSizeRepeat}
+                            onTouchStart={() => startFontSizeRepeat(2)}
+                            onTouchEnd={stopFontSizeRepeat}
+                            disabled={lyricsFontSize >= 120}
+                            title="Increase font size (hold to repeat)"
+                          >
+                            <Plus className="h-5 w-5" />
+                          </Button>
+                        </div>
                       </div>
 
                       {/* Auto-scroll controls */}
-                      <div className="flex items-center border rounded-md bg-card">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={cn(
-                            "gap-2 rounded-r-none border-r",
-                            isScrolling && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-                          )}
-                          onClick={() => setIsScrolling(!isScrolling)}
-                        >
-                          {isScrolling ? (
-                            <>
-                              <Pause className="h-4 w-4" />
-                              <span className="hidden sm:inline">Pause</span>
-                            </>
-                          ) : (
-                            <>
-                              <Play className="h-4 w-4" />
-                              <span className="hidden sm:inline">Auto-scroll</span>
-                            </>
-                          )}
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-none select-none touch-manipulation"
-                          style={{ WebkitTouchCallout: 'none' }}
-                          onMouseDown={() => startSpeedRepeat(-1)}
-                          onMouseUp={stopSpeedRepeat}
-                          onMouseLeave={stopSpeedRepeat}
-                          onTouchStart={() => startSpeedRepeat(-1)}
-                          onTouchEnd={stopSpeedRepeat}
-                          disabled={scrollSpeed <= 1}
-                          title="Slower (hold to repeat)"
-                        >
-                          <Minus className="h-3.5 w-3.5" />
-                        </Button>
-                        {isEditingSpeed ? (
-                          <Input
-                            type="number"
-                            value={speedInputValue}
-                            onChange={(e) => setSpeedInputValue(e.target.value)}
-                            onBlur={handleSpeedInputSubmit}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                handleSpeedInputSubmit();
-                              } else if (e.key === "Escape") {
-                                setSpeedInputValue(String(scrollSpeed));
-                                setIsEditingSpeed(false);
-                              }
-                            }}
-                            className="w-10 h-8 text-center text-xs px-1 border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            min={1}
-                            max={30}
-                            autoFocus
-                          />
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setSpeedInputValue(String(scrollSpeed));
-                              setIsEditingSpeed(true);
-                            }}
-                            className="flex items-center gap-0.5 pl-1 pr-1 h-8 hover:bg-accent rounded-none transition-colors"
-                            title="Click to enter custom speed"
-                          >
-                            <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground w-2 text-center font-mono">
-                              {scrollSpeed}
-                            </span>
-                          </button>
+                      <div className="relative">
+                        {/* Floating speed indicator */}
+                        {isAdjustingSpeed && (
+                          <div className="absolute -top-10 right-8 z-50 bg-primary text-primary-foreground px-3 py-1.5 rounded-lg shadow-lg text-lg font-bold animate-in fade-in zoom-in-95 duration-150">
+                            {scrollSpeed}
+                          </div>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-l-none select-none touch-manipulation"
-                          style={{ WebkitTouchCallout: 'none' }}
-                          onMouseDown={() => startSpeedRepeat(1)}
-                          onMouseUp={stopSpeedRepeat}
-                          onMouseLeave={stopSpeedRepeat}
-                          onTouchStart={() => startSpeedRepeat(1)}
-                          onTouchEnd={stopSpeedRepeat}
-                          disabled={scrollSpeed >= 30}
-                          title="Faster (hold to repeat)"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center border rounded-md bg-card">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                              "gap-2 rounded-r-none border-r",
+                              isScrolling && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                            )}
+                            onClick={() => setIsScrolling(!isScrolling)}
+                          >
+                            {isScrolling ? (
+                              <>
+                                <Pause className="h-5 w-5" />
+                                <span className="hidden sm:inline">Pause</span>
+                              </>
+                            ) : (
+                              <>
+                                <Play className="h-5 w-5" />
+                                <span className="hidden sm:inline">Auto-scroll</span>
+                              </>
+                            )}
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 rounded-none select-none touch-manipulation"
+                            style={{ WebkitTouchCallout: 'none' }}
+                            onMouseDown={() => startSpeedRepeat(-1)}
+                            onMouseUp={stopSpeedRepeat}
+                            onMouseLeave={stopSpeedRepeat}
+                            onTouchStart={() => startSpeedRepeat(-1)}
+                            onTouchEnd={stopSpeedRepeat}
+                            disabled={scrollSpeed <= 1}
+                            title="Slower (hold to repeat)"
+                          >
+                            <Minus className="h-5 w-5" />
+                          </Button>
+                          {isEditingSpeed ? (
+                            <Input
+                              type="number"
+                              value={speedInputValue}
+                              onChange={(e) => setSpeedInputValue(e.target.value)}
+                              onBlur={handleSpeedInputSubmit}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  handleSpeedInputSubmit();
+                                } else if (e.key === "Escape") {
+                                  setSpeedInputValue(String(scrollSpeed));
+                                  setIsEditingSpeed(false);
+                                }
+                              }}
+                              className="w-10 h-8 text-center text-xs px-1 border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              min={1}
+                              max={30}
+                              autoFocus
+                            />
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setSpeedInputValue(String(scrollSpeed));
+                                setIsEditingSpeed(true);
+                              }}
+                              className="flex items-center gap-0.5 pl-1 pr-1 h-8 hover:bg-accent rounded-none transition-colors"
+                              title="Click to enter custom speed"
+                            >
+                              <Gauge className="h-5 w-5 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground w-2 text-center font-mono">
+                                {scrollSpeed}
+                              </span>
+                            </button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 rounded-l-none select-none touch-manipulation"
+                            style={{ WebkitTouchCallout: 'none' }}
+                            onMouseDown={() => startSpeedRepeat(1)}
+                            onMouseUp={stopSpeedRepeat}
+                            onMouseLeave={stopSpeedRepeat}
+                            onTouchStart={() => startSpeedRepeat(1)}
+                            onTouchEnd={stopSpeedRepeat}
+                            disabled={scrollSpeed >= 30}
+                            title="Faster (hold to repeat)"
+                          >
+                            <Plus className="h-5 w-5" />
+                          </Button>
+                        </div>
                       </div>
 
                       {/* View toggle - only show if both lyrics and music are available */}
@@ -1037,14 +1119,14 @@ export default function SongPageClient() {
                               aria-label="View lyrics"
                               className="data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=off]:text-muted-foreground/50 hover:bg-transparent hover:text-foreground px-2"
                             >
-                              <LetterText className="h-4 w-4" />
+                              <LetterText className="h-5 w-5" />
                             </ToggleGroupItem>
                             <ToggleGroupItem
                               value="music"
                               aria-label="View music"
                               className="data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=off]:text-muted-foreground/50 hover:bg-transparent hover:text-foreground px-2"
                             >
-                              <Music className="h-4 w-4" />
+                              <Music className="h-5 w-5" />
                             </ToggleGroupItem>
                           </ToggleGroup>
                         </>
@@ -1052,16 +1134,16 @@ export default function SongPageClient() {
 
                       {/* Home button */}
                       <Link href="/">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                          <Home className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-foreground">
+                          <Home className="h-5 w-5" />
                         </Button>
                       </Link>
 
                       {/* More options menu */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
+                          <Button variant="ghost" size="icon" className="h-10 w-10">
+                            <MoreVertical className="h-5 w-5" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
@@ -1182,7 +1264,7 @@ export default function SongPageClient() {
 
                     {/* Music controls - bottom bar */}
                     <div
-                      className="flex items-center justify-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 border-t border-border/50 bg-card/90 backdrop-blur-sm w-full overflow-x-auto shrink-0"
+                      className="flex items-center justify-center gap-2 sm:gap-4 px-2 sm:px-4 py-2 border-t border-border/50 bg-card/90 backdrop-blur-sm w-full overflow-visible shrink-0"
                       style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
                     >
                       {/* Songlist button */}
@@ -1196,12 +1278,12 @@ export default function SongPageClient() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-r-none border-r"
+                          className="h-10 w-10 rounded-r-none border-r"
                           onClick={() => handleZoomChange(pdfZoom - 0.15)}
                           disabled={pdfZoom <= 0.1}
                           title="Zoom out (15%)"
                         >
-                          <Minus className="h-3.5 w-3.5" />
+                          <Minus className="h-5 w-5" />
                         </Button>
 
                         {isEditingZoom ? (
@@ -1232,7 +1314,7 @@ export default function SongPageClient() {
                             className="flex items-center gap-1.5 px-2 h-8 text-sm font-medium hover:bg-accent rounded-none transition-colors"
                             title="Click to enter custom zoom"
                           >
-                            <ZoomIn className="h-4 w-4 text-muted-foreground" />
+                            <ZoomIn className="h-5 w-5 text-muted-foreground" />
                             <span>{Math.round(pdfZoom * 100)}%</span>
                           </button>
                         )}
@@ -1240,12 +1322,12 @@ export default function SongPageClient() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-l-none border-l"
+                          className="h-10 w-10 rounded-l-none border-l"
                           onClick={() => handleZoomChange(pdfZoom + 0.15)}
                           disabled={pdfZoom >= 5}
                           title="Zoom in (15%)"
                         >
-                          <Plus className="h-3.5 w-3.5" />
+                          <Plus className="h-5 w-5" />
                         </Button>
                       </div>
 
@@ -1253,93 +1335,101 @@ export default function SongPageClient() {
                       <div className="h-6 w-px bg-border" />
 
                       {/* Auto-scroll controls */}
-                      <div className="flex items-center border rounded-md bg-card">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={cn(
-                            "gap-2 rounded-r-none border-r",
-                            isScrolling && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-                          )}
-                          onClick={() => setIsScrolling(!isScrolling)}
-                        >
-                          {isScrolling ? (
-                            <>
-                              <Pause className="h-4 w-4" />
-                              <span className="hidden sm:inline">Pause</span>
-                            </>
-                          ) : (
-                            <>
-                              <Play className="h-4 w-4" />
-                              <span className="hidden sm:inline">Auto-scroll</span>
-                            </>
-                          )}
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-none select-none touch-manipulation"
-                          style={{ WebkitTouchCallout: 'none' }}
-                          onMouseDown={() => startSpeedRepeat(-1)}
-                          onMouseUp={stopSpeedRepeat}
-                          onMouseLeave={stopSpeedRepeat}
-                          onTouchStart={() => startSpeedRepeat(-1)}
-                          onTouchEnd={stopSpeedRepeat}
-                          disabled={scrollSpeed <= 1}
-                          title="Slower (hold to repeat)"
-                        >
-                          <Minus className="h-3.5 w-3.5" />
-                        </Button>
-                        {isEditingSpeed ? (
-                          <Input
-                            type="number"
-                            value={speedInputValue}
-                            onChange={(e) => setSpeedInputValue(e.target.value)}
-                            onBlur={handleSpeedInputSubmit}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                handleSpeedInputSubmit();
-                              } else if (e.key === "Escape") {
-                                setSpeedInputValue(String(scrollSpeed));
-                                setIsEditingSpeed(false);
-                              }
-                            }}
-                            className="w-10 h-8 text-center text-xs px-1 border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            min={1}
-                            max={30}
-                            autoFocus
-                          />
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setSpeedInputValue(String(scrollSpeed));
-                              setIsEditingSpeed(true);
-                            }}
-                            className="flex items-center gap-0.5 pl-1 pr-1 h-8 hover:bg-accent rounded-none transition-colors"
-                            title="Click to enter custom speed"
-                          >
-                            <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground w-2 text-center font-mono">
-                              {scrollSpeed}
-                            </span>
-                          </button>
+                      <div className="relative">
+                        {/* Floating speed indicator */}
+                        {isAdjustingSpeed && (
+                          <div className="absolute -top-10 right-8 z-50 bg-primary text-primary-foreground px-3 py-1.5 rounded-lg shadow-lg text-lg font-bold animate-in fade-in zoom-in-95 duration-150">
+                            {scrollSpeed}
+                          </div>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-l-none select-none touch-manipulation"
-                          style={{ WebkitTouchCallout: 'none' }}
-                          onMouseDown={() => startSpeedRepeat(1)}
-                          onMouseUp={stopSpeedRepeat}
-                          onMouseLeave={stopSpeedRepeat}
-                          onTouchStart={() => startSpeedRepeat(1)}
-                          onTouchEnd={stopSpeedRepeat}
-                          disabled={scrollSpeed >= 30}
-                          title="Faster (hold to repeat)"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center border rounded-md bg-card">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                              "gap-2 rounded-r-none border-r",
+                              isScrolling && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                            )}
+                            onClick={() => setIsScrolling(!isScrolling)}
+                          >
+                            {isScrolling ? (
+                              <>
+                                <Pause className="h-5 w-5" />
+                                <span className="hidden sm:inline">Pause</span>
+                              </>
+                            ) : (
+                              <>
+                                <Play className="h-5 w-5" />
+                                <span className="hidden sm:inline">Auto-scroll</span>
+                              </>
+                            )}
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 rounded-none select-none touch-manipulation"
+                            style={{ WebkitTouchCallout: 'none' }}
+                            onMouseDown={() => startSpeedRepeat(-1)}
+                            onMouseUp={stopSpeedRepeat}
+                            onMouseLeave={stopSpeedRepeat}
+                            onTouchStart={() => startSpeedRepeat(-1)}
+                            onTouchEnd={stopSpeedRepeat}
+                            disabled={scrollSpeed <= 1}
+                            title="Slower (hold to repeat)"
+                          >
+                            <Minus className="h-5 w-5" />
+                          </Button>
+                          {isEditingSpeed ? (
+                            <Input
+                              type="number"
+                              value={speedInputValue}
+                              onChange={(e) => setSpeedInputValue(e.target.value)}
+                              onBlur={handleSpeedInputSubmit}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  handleSpeedInputSubmit();
+                                } else if (e.key === "Escape") {
+                                  setSpeedInputValue(String(scrollSpeed));
+                                  setIsEditingSpeed(false);
+                                }
+                              }}
+                              className="w-10 h-8 text-center text-xs px-1 border-0 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              min={1}
+                              max={30}
+                              autoFocus
+                            />
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setSpeedInputValue(String(scrollSpeed));
+                                setIsEditingSpeed(true);
+                              }}
+                              className="flex items-center gap-0.5 pl-1 pr-1 h-8 hover:bg-accent rounded-none transition-colors"
+                              title="Click to enter custom speed"
+                            >
+                              <Gauge className="h-5 w-5 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground w-2 text-center font-mono">
+                                {scrollSpeed}
+                              </span>
+                            </button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 rounded-l-none select-none touch-manipulation"
+                            style={{ WebkitTouchCallout: 'none' }}
+                            onMouseDown={() => startSpeedRepeat(1)}
+                            onMouseUp={stopSpeedRepeat}
+                            onMouseLeave={stopSpeedRepeat}
+                            onTouchStart={() => startSpeedRepeat(1)}
+                            onTouchEnd={stopSpeedRepeat}
+                            disabled={scrollSpeed >= 30}
+                            title="Faster (hold to repeat)"
+                          >
+                            <Plus className="h-5 w-5" />
+                          </Button>
+                        </div>
                       </div>
 
                       {/* View toggle - only show if both lyrics and music are available */}
@@ -1359,14 +1449,14 @@ export default function SongPageClient() {
                               aria-label="View lyrics"
                               className="data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=off]:text-muted-foreground/50 hover:bg-transparent hover:text-foreground px-2"
                             >
-                              <LetterText className="h-4 w-4" />
+                              <LetterText className="h-5 w-5" />
                             </ToggleGroupItem>
                             <ToggleGroupItem
                               value="music"
                               aria-label="View music"
                               className="data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=off]:text-muted-foreground/50 hover:bg-transparent hover:text-foreground px-2"
                             >
-                              <Music className="h-4 w-4" />
+                              <Music className="h-5 w-5" />
                             </ToggleGroupItem>
                           </ToggleGroup>
                         </>
@@ -1374,16 +1464,16 @@ export default function SongPageClient() {
 
                       {/* Home button */}
                       <Link href="/">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                          <Home className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-foreground">
+                          <Home className="h-5 w-5" />
                         </Button>
                       </Link>
 
                       {/* More options menu */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
+                          <Button variant="ghost" size="icon" className="h-10 w-10">
+                            <MoreVertical className="h-5 w-5" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
@@ -1713,7 +1803,7 @@ function MusicViewer({
               >
                 <img src="/icons/noun-metronome-7664072-FFFFFF.svg" alt="" className="h-5 w-5" />
                 {isMetronomeActive ? (
-                  <Pause className="h-4 w-4" />
+                  <Pause className="h-5 w-5" />
                 ) : (
                   <>
                     <Play className="h-4 w-4 hidden group-hover:block" />
@@ -1806,7 +1896,7 @@ function MusicViewer({
             >
               <img src="/icons/noun-metronome-7664072-FFFFFF.svg" alt="" className="h-5 w-5" />
               {isMetronomeActive ? (
-                <Pause className="h-4 w-4" />
+                <Pause className="h-5 w-5" />
               ) : (
                 <>
                   <Play className="h-4 w-4 hidden group-hover:block" />
@@ -1858,7 +1948,7 @@ function MusicViewer({
           >
             <img src="/icons/noun-metronome-7664072-FFFFFF.svg" alt="" className="h-5 w-5" />
             {isMetronomeActive ? (
-              <Pause className="h-4 w-4" />
+              <Pause className="h-5 w-5" />
             ) : (
               <>
                 <Play className="h-4 w-4 hidden group-hover:block" />
