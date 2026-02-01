@@ -1175,17 +1175,16 @@ export default function SongPageClient() {
                                 onClick={() => setViewMode("lyrics")}
                                 className="sm:hidden"
                               >
-                                <LetterText className={cn("h-4 w-4 mr-2", viewMode === "lyrics" && "text-primary")} />
+                                <LetterText className="h-4 w-4 mr-2 text-primary" />
                                 View Lyrics
-                                {viewMode === "lyrics" && <span className="ml-auto">✓</span>}
+                                <span className="ml-auto">✓</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => setViewMode("music")}
                                 className="sm:hidden"
                               >
-                                <Music className={cn("h-4 w-4 mr-2", viewMode === "music" && "text-primary")} />
+                                <Music className="h-4 w-4 mr-2" />
                                 View Music
-                                {viewMode === "music" && <span className="ml-auto">✓</span>}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator className="sm:hidden" />
                             </>
@@ -1535,17 +1534,16 @@ export default function SongPageClient() {
                                 onClick={() => setViewMode("lyrics")}
                                 className="sm:hidden"
                               >
-                                <LetterText className={cn("h-4 w-4 mr-2", viewMode === "lyrics" && "text-primary")} />
+                                <LetterText className="h-4 w-4 mr-2" />
                                 View Lyrics
-                                {viewMode === "lyrics" && <span className="ml-auto">✓</span>}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => setViewMode("music")}
                                 className="sm:hidden"
                               >
-                                <Music className={cn("h-4 w-4 mr-2", viewMode === "music" && "text-primary")} />
+                                <Music className="h-4 w-4 mr-2 text-primary" />
                                 View Music
-                                {viewMode === "music" && <span className="ml-auto">✓</span>}
+                                <span className="ml-auto">✓</span>
                               </DropdownMenuItem>
                               <DropdownMenuSeparator className="sm:hidden" />
                             </>

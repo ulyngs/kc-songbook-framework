@@ -438,30 +438,24 @@ export function AddSongDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          "overflow-y-auto transition-all duration-200",
+          "flex flex-col overflow-hidden transition-all duration-200 pb-4",
           isEditorFullscreen
             ? "!max-w-[100vw] !w-[100vw] !max-h-[100vh] !h-[100vh] !rounded-none !translate-x-[-50%] !translate-y-[-50%]"
             : cn(
               // Mobile: fullscreen
               "max-w-[100vw] w-[100vw] max-h-[100vh] h-[100vh] rounded-none",
-              // Desktop: normal dialog
-              "sm:max-h-[90vh] sm:h-auto sm:rounded-lg",
-              musicType === "text" ? "sm:max-w-5xl sm:w-auto" : "sm:max-w-2xl sm:w-auto"
+              // Desktop: fixed size dialog that can be resized
+              "sm:max-h-[85vh] sm:h-[85vh] sm:rounded-lg sm:max-w-none",
+              musicType === "text" ? "sm:w-[900px]" : "sm:w-[600px]"
             )
         )}
         style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
-        resizable={musicType === "text" && !isEditorFullscreen}
+        resizable={!isEditorFullscreen}
       >
-        <DialogHeader>
+        <DialogHeader className="-mb-2">
           <DialogTitle className="font-display text-xl">
             {showPasswordInput ? "Unlock Collection" : "Add New Song"}
           </DialogTitle>
-          <DialogDescription>
-            {showPasswordInput
-              ? "Enter password to unlock the KC Collection"
-              : "Add lyrics and music sheets to your songbook"
-            }
-          </DialogDescription>
         </DialogHeader>
 
         {showPasswordInput ? (
@@ -495,214 +489,204 @@ export function AddSongDialog({
             </div>
           </form>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-5 overflow-x-hidden max-w-full">
-            {/* Title & Artist */}
-            <div className="grid grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-5 pr-2">
+              {/* Title & Artist */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Song Title *</Label>
+                  <Input
+                    id="title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Bohemian Rhapsody"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="artist">Artist *</Label>
+                  <Input
+                    id="artist"
+                    value={artist}
+                    onChange={(e) => setArtist(e.target.value)}
+                    placeholder="e.g. Queen"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Key */}
               <div className="space-y-2">
-                <Label htmlFor="title">Song Title *</Label>
+                <Label htmlFor="key">Key (optional)</Label>
                 <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Bohemian Rhapsody"
-                  required
+                  id="key"
+                  value={songKey}
+                  onChange={(e) => setSongKey(e.target.value)}
+                  placeholder="e.g. Bb, Am, G#m"
+                  className="max-w-32"
                 />
               </div>
+
+              {/* Tempo */}
               <div className="space-y-2">
-                <Label htmlFor="artist">Artist *</Label>
+                <Label htmlFor="tempo">BPM (optional)</Label>
                 <Input
-                  id="artist"
-                  value={artist}
-                  onChange={(e) => setArtist(e.target.value)}
-                  placeholder="e.g. Queen"
-                  required
+                  id="tempo"
+                  value={tempo}
+                  onChange={(e) => setTempo(e.target.value)}
+                  placeholder="e.g. 80 BPM"
+                  className="max-w-32"
                 />
               </div>
-            </div>
 
-            {/* Key */}
-            <div className="space-y-2">
-              <Label htmlFor="key">Key (optional)</Label>
-              <Input
-                id="key"
-                value={songKey}
-                onChange={(e) => setSongKey(e.target.value)}
-                placeholder="e.g. Bb, Am, G#m"
-                className="max-w-32"
-              />
-            </div>
+              {/* Lyrics */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setIsLyricsExpanded(!isLyricsExpanded)}
+                  className="flex items-center gap-2 text-sm font-medium cursor-pointer hover:text-foreground/80 transition-colors"
+                >
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", !isLyricsExpanded && "-rotate-90")} />
+                  Lyrics
+                </button>
+                {isLyricsExpanded && (
+                  <Textarea
+                    id="lyrics"
+                    value={lyrics}
+                    onChange={(e) => setLyrics(e.target.value)}
+                    placeholder="Paste or type the lyrics here..."
+                    className="min-h-[150px] font-mono text-sm"
+                  />
+                )}
+              </div>
 
-            {/* Tempo */}
-            <div className="space-y-2">
-              <Label htmlFor="tempo">BPM (optional)</Label>
-              <Input
-                id="tempo"
-                value={tempo}
-                onChange={(e) => setTempo(e.target.value)}
-                placeholder="e.g. 80 BPM"
-                className="max-w-32"
-              />
-            </div>
+              {/* Music */}
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setIsMusicExpanded(!isMusicExpanded)}
+                  className="flex items-center gap-2 text-sm font-medium cursor-pointer hover:text-foreground/80 transition-colors"
+                >
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", !isMusicExpanded && "-rotate-90")} />
+                  Music Sheet
+                </button>
+                {isMusicExpanded && (
+                  <Tabs value={musicType} onValueChange={(v) => setMusicType(v as "file" | "text")}>
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="file" className="gap-2">
+                        <Upload className="h-4 w-4" />
+                        Upload File
+                      </TabsTrigger>
+                      <TabsTrigger value="text" className="gap-2">
+                        <FileText className="h-4 w-4" />
+                        Type Text
+                      </TabsTrigger>
+                    </TabsList>
 
-            {/* Lyrics */}
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setIsLyricsExpanded(!isLyricsExpanded)}
-                className="flex items-center gap-2 text-sm font-medium cursor-pointer hover:text-foreground/80 transition-colors"
-              >
-                <ChevronDown className={cn("h-4 w-4 transition-transform", !isLyricsExpanded && "-rotate-90")} />
-                Lyrics
-              </button>
-              {isLyricsExpanded && (
-                <Textarea
-                  id="lyrics"
-                  value={lyrics}
-                  onChange={(e) => setLyrics(e.target.value)}
-                  placeholder="Paste or type the lyrics here..."
-                  className="min-h-[150px] font-mono text-sm"
-                />
-              )}
-            </div>
-
-            {/* Music */}
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={() => setIsMusicExpanded(!isMusicExpanded)}
-                className="flex items-center gap-2 text-sm font-medium cursor-pointer hover:text-foreground/80 transition-colors"
-              >
-                <ChevronDown className={cn("h-4 w-4 transition-transform", !isMusicExpanded && "-rotate-90")} />
-                Music Sheet
-              </button>
-              {isMusicExpanded && (
-                <Tabs value={musicType} onValueChange={(v) => setMusicType(v as "file" | "text")}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="file" className="gap-2">
-                      <Upload className="h-4 w-4" />
-                      Upload File
-                    </TabsTrigger>
-                    <TabsTrigger value="text" className="gap-2">
-                      <FileText className="h-4 w-4" />
-                      Type Text
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="file" className="mt-3">
-                    <div className="space-y-3">
-                      {isMounted ? (
-                        <DndContext
-                          sensors={sensors}
-                          collisionDetection={closestCenter}
-                          onDragEnd={handleDragEnd}
-                        >
-                          {/* Show selected files as thumbnails */}
-                          {(newFilePreviews.length > 0 || nativeFileData.length > 0) && (
-                            <div className="space-y-2">
-                              <p className="text-xs text-muted-foreground">Pages ({newFilePreviews.length + nativeFileData.length})</p>
-                              <SortableContext
-                                items={nativeFileData.length > 0
-                                  ? nativeFileData.map(f => f.id)
-                                  : newFilePreviews.map(p => p.id)
-                                }
-                                strategy={rectSortingStrategy}
-                              >
-                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                                  {nativeFileData.length > 0
-                                    ? nativeFileData.map((file, index) => (
-                                      <SortablePageItem
-                                        key={file.id}
-                                        id={file.id}
-                                        pageData={file.data}
-                                        index={index}
-                                        isPdf={file.type === 'pdf'}
-                                        onRemove={() => setNativeFileData(prev => prev.filter(f => f.id !== file.id))}
-                                      />
-                                    ))
-                                    : newFilePreviews.map((preview, index) => (
-                                      <SortablePageItem
-                                        key={preview.id}
-                                        id={preview.id}
-                                        pageData={preview.data || ''}
-                                        index={index}
-                                        isPdf={!preview.data}
-                                        onRemove={() => {
-                                          setNewFilePreviews(prev => prev.filter(p => p.id !== preview.id));
-                                        }}
-                                      />
-                                    ))
+                    <TabsContent value="file" className="mt-3">
+                      <div className="space-y-3">
+                        {isMounted ? (
+                          <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
+                          >
+                            {/* Show selected files as thumbnails */}
+                            {(newFilePreviews.length > 0 || nativeFileData.length > 0) && (
+                              <div className="space-y-2">
+                                <p className="text-xs text-muted-foreground">Pages ({newFilePreviews.length + nativeFileData.length})</p>
+                                <SortableContext
+                                  items={nativeFileData.length > 0
+                                    ? nativeFileData.map(f => f.id)
+                                    : newFilePreviews.map(p => p.id)
                                   }
-                                </div>
-                              </SortableContext>
-                            </div>
-                          )}
-                        </DndContext>
-                      ) : null}
+                                  strategy={rectSortingStrategy}
+                                >
+                                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                                    {nativeFileData.length > 0
+                                      ? nativeFileData.map((file, index) => (
+                                        <SortablePageItem
+                                          key={file.id}
+                                          id={file.id}
+                                          pageData={file.data}
+                                          index={index}
+                                          isPdf={file.type === 'pdf'}
+                                          onRemove={() => setNativeFileData(prev => prev.filter(f => f.id !== file.id))}
+                                        />
+                                      ))
+                                      : newFilePreviews.map((preview, index) => (
+                                        <SortablePageItem
+                                          key={preview.id}
+                                          id={preview.id}
+                                          pageData={preview.data || ''}
+                                          index={index}
+                                          isPdf={!preview.data}
+                                          onRemove={() => {
+                                            setNewFilePreviews(prev => prev.filter(p => p.id !== preview.id));
+                                          }}
+                                        />
+                                      ))
+                                    }
+                                  </div>
+                                </SortableContext>
+                              </div>
+                            )}
+                          </DndContext>
+                        ) : null}
 
-                      {/* Upload area / Add more button */}
-                      <div
-                        className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
-                        onClick={handleFileUploadClick}
-                      >
-                        <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                        <p className="text-sm text-muted-foreground">
-                          {newFilePreviews.length > 0 || nativeFileData.length > 0
-                            ? "Add more pages"
-                            : "Click to upload PDF or take photos"}
-                        </p>
+                        {/* Upload area / Add more button */}
+                        <div
+                          className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                          onClick={handleFileUploadClick}
+                        >
+                          <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground">
+                            {newFilePreviews.length > 0 || nativeFileData.length > 0
+                              ? "Add more pages"
+                              : "Click to upload PDF or take photos"}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".pdf,image/*"
-                      multiple
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-                  </TabsContent>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,image/*"
+                        multiple
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                    </TabsContent>
 
-                  <TabsContent value="text" className="mt-3">
-                    <ChordSheetEditor
-                      value={musicText}
-                      onChange={setMusicText}
-                      minHeight="250px"
-                      onFullscreenChange={setIsEditorFullscreen}
-                    />
-                  </TabsContent>
-                </Tabs>
-              )}
+                    <TabsContent value="text" className="mt-3">
+                      <ChordSheetEditor
+                        value={musicText}
+                        onChange={setMusicText}
+                        minHeight="250px"
+                        onFullscreenChange={setIsEditorFullscreen}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                )}
+              </div>
             </div>
 
-            {/* Submit */}
-            <div className="flex justify-end gap-3 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Add Song
-              </Button>
-            </div>
-
-            {!showPasswordInput && (
-              <div className="pt-4 mt-2 border-t border-border/50 text-center">
+            {/* Fixed Footer */}
+            <div className="flex-shrink-0 pt-2 mt-2 pb-0">
+              <div className="flex justify-end gap-3">
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="gap-2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowPasswordInput(true)}
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
                 >
-                  <Lock className="h-3 w-3" />
-                  <span className="text-xs">Have the KC Collection password? Import it here</span>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Add Song
                 </Button>
               </div>
-            )}
+            </div>
           </form>
         )}
       </DialogContent>

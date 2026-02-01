@@ -103,6 +103,12 @@ export async function deleteSong(id: string): Promise<void> {
   await db.delete(STORE_NAME, id);
 }
 
+// Restore a song (for undo functionality)
+export async function restoreSong(song: Song): Promise<void> {
+  const db = await getDB();
+  await db.put(STORE_NAME, song);
+}
+
 // Bulk add songs
 export async function bulkAddSongs(songs: Omit<Song, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<Song[]> {
   const db = await getDB();

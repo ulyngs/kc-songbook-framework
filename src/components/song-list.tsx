@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Song, updateSong } from "@/lib/db";
+import { Song, updateSong, deleteSong, restoreSong } from "@/lib/db";
 import { SortField, SortOrder } from "@/app/page";
 import { ArrowUpDown, ArrowUp, ArrowDown, Music, MoreHorizontal, Pencil, Trash2, Heart, Search, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -78,10 +78,27 @@ export function SongList({
     setEditDialogOpen(true);
   };
 
-  const handleDelete = (song: Song) => {
-    if (confirm(`Delete "${song.title}"?`)) {
-      onDelete(song.id);
-    }
+  const handleDelete = async (song: Song) => {
+    // Save the song data for potential undo
+    const deletedSong = { ...song };
+
+    // Delete immediately
+    await deleteSong(song.id);
+    onDelete(song.id);
+
+    // Show toast with undo button
+    toast(`"${song.title}" deleted`, {
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          // Restore the song
+          await restoreSong(deletedSong);
+          onSongUpdated?.();
+          toast.success(`"${song.title}" restored`);
+        },
+      },
+      duration: 5000,
+    });
   };
 
   const handleToggleFavourite = async (song: Song) => {
