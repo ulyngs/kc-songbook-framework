@@ -42,6 +42,7 @@ import {
   Home,
   Pencil,
   FileDown,
+  Disc3,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -54,6 +55,7 @@ import { SeamlessPdfViewer } from "@/components/seamless-pdf-viewer";
 import { ChordSheetRenderer } from "@/components/chord-sheet-renderer";
 import { ChordSheetEditor } from "@/components/chord-sheet-editor";
 import { EditSongDialog } from "@/components/edit-song-dialog";
+import { GenreWheel } from "@/components/genre-wheel";
 
 type ViewMode = "lyrics" | "music";
 
@@ -244,6 +246,9 @@ export default function SongPageClient() {
 
   // Edit song dialog state
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+  // Genre wheel state
+  const [showGenreWheel, setShowGenreWheel] = useState(false);
 
   // Toggle lyrics fullscreen
   const toggleLyricsFullscreen = useCallback(() => {
@@ -801,33 +806,59 @@ export default function SongPageClient() {
                   >
                     {/* Scrollable lyrics container */}
                     <div
-                      ref={lyricsRefCallback}
+                      ref={showGenreWheel ? undefined : lyricsRefCallback}
                       className={cn(
                         "flex-1 p-8 sm:p-12 overflow-y-auto",
                         isLyricsFullscreen && "pl-12 sm:pl-20"
                       )}
                       style={{ touchAction: "pan-y" }}
                     >
-                      <div className="lyrics-text font-sans max-w-none" style={{ fontSize: `${lyricsFontSize}px` }}>
-                        {/* Song title and artist header */}
-                        <div className="text-center mb-6">
-                          <h2 className="font-bold leading-tight">{song.title}</h2>
-                          <p className="text-muted-foreground italic mt-0.5" style={{ fontSize: `${lyricsFontSize * 0.75}px` }}>
-                            {song.isMovie ? 'from' : 'by'} {song.artist}
-                          </p>
-                        </div>
+                      {showGenreWheel ? (
+                        /* Genre Wheel View */
+                        <GenreWheel
+                          songTitle={song.title}
+                          songArtist={song.artist}
+                          isMovie={song.isMovie}
+                          onClose={() => setShowGenreWheel(false)}
+                        />
+                      ) : (
+                        /* Lyrics View */
+                        <div className="lyrics-text font-sans max-w-none" style={{ fontSize: `${lyricsFontSize}px` }}>
+                          {/* Song title and artist header with wheel button */}
+                          <div className="text-center mb-6 relative">
+                            <div className="flex items-center justify-center gap-2">
+                              <h2 className="font-bold leading-tight">{song.title}</h2>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-12 w-12 text-muted-foreground hover:text-foreground flex-shrink-0"
+                                onClick={() => setShowGenreWheel(true)}
+                                title="Spin the genre wheel"
+                              >
+                                <img
+                                  src="/icons/noun-fortune-wheel-7688040.svg"
+                                  alt="Genre wheel"
+                                  className="h-10 w-10 opacity-60 hover:opacity-100 transition-opacity dark:invert dark:brightness-90"
+                                />
+                              </Button>
+                            </div>
+                            <p className="text-muted-foreground italic -mt-1" style={{ fontSize: `${lyricsFontSize * 0.75}px` }}>
+                              {song.isMovie ? 'from' : 'by'} {song.artist}
+                            </p>
+                          </div>
 
-                        <ReactMarkdown
-                          components={{
-                            p: ({ children }) => <p className="whitespace-pre-wrap mb-0 last:mb-0" style={{ lineHeight: 1.4 }}>{children}</p>,
-                            em: ({ children }) => <em className="text-muted-foreground not-italic opacity-70">{children}</em>,
-                            strong: ({ children }) => <strong className="font-bold">{children}</strong>,
-                          }}
-                        >
-                          {/* Convert (*text*) to *(text)* for consistent markdown parsing */}
-                          {song.lyrics?.replace(/\(\*([^*]+)\*\)/g, '*($1)*')}
-                        </ReactMarkdown>
-                      </div>
+                          <ReactMarkdown
+                            components={{
+                              p: ({ children }) => <p className="whitespace-pre-wrap mb-0 last:mb-0" style={{ lineHeight: 1.4 }}>{children}</p>,
+                              em: ({ children }) => <em className="text-muted-foreground not-italic opacity-70">{children}</em>,
+                              strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                            }}
+                          >
+                            {/* Convert (*text*) to *(text)* for consistent markdown parsing */}
+                            {song.lyrics?.replace(/\(\*([^*]+)\*\)/g, '*($1)*')}
+                          </ReactMarkdown>
+                        </div>
+                      )}
                     </div>
 
                     {/* Lyrics controls - bottom bar */}

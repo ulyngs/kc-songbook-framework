@@ -245,3 +245,76 @@
       oklch(0.75 0.15 75 / 0.1) 50%,
       oklch(0.65 0.18 25 / 0.08) 100%);
 }
+
+/* Genre Wheel Colors */
+:root {
+  --genre-classical: oklch(0.58 0.14 50);
+  --genre-techno: oklch(0.58 0.22 200);
+  --genre-swing-jazz: oklch(0.82 0.16 95);
+  --genre-reggae: oklch(0.55 0.20 140);
+  --genre-waltz: oklch(0.75 0.12 320);
+  --genre-latin: oklch(0.48 0.22 25);
+  --genre-rock: oklch(0.50 0.20 260);
+  --genre-metal: oklch(0.22 0.02 250);
+  --genre-rap: oklch(0.72 0.16 70);
+}
+
+/* Genre Wheel Animations */
+@keyframes genre-wheel-bounce-in {
+  0% {
+    transform: translateY(-20px) scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes genre-wheel-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes genre-wheel-explode {
+  0% {
+    transform: translateY(0) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100px) scale(1.5) rotate(15deg);
+    opacity: 0;
+  }
+}
+
+@keyframes genre-wheel-glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 30px oklch(0.72 0.16 70 / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 50px oklch(0.72 0.16 70 / 0.5);
+  }
+}
+
+.genre-wheel-bounce-in {
+  animation: genre-wheel-bounce-in 0.4s ease-out;
+}
+
+.genre-wheel-fade-in {
+  animation: genre-wheel-fade-in 0.5s ease-out;
+}
+
+.genre-wheel-explode {
+  animation: genre-wheel-explode 0.4s ease-out;
+  transform-origin: center center;
+}
+
+.genre-wheel-glow {
+  animation: genre-wheel-glow-pulse 2s ease-in-out infinite;
+}
