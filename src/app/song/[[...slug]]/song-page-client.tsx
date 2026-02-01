@@ -1673,22 +1673,26 @@ function MusicViewer({
               <button
                 onClick={toggleMetronome}
                 className={cn(
-                  "absolute top-2 right-2 px-2 py-0.5 rounded-md text-xs transition-colors cursor-pointer flex items-center gap-1 group",
+                  "fixed top-4 right-4 z-50 px-3 py-1.5 rounded-md text-sm transition-colors cursor-pointer flex items-center gap-1 group shadow-lg",
                   isMetronomeActive
                     ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    : "bg-black/70 text-white hover:bg-black/80 backdrop-blur-sm"
                 )}
                 title={isMetronomeActive ? "Click to stop metronome" : "Click to start metronome"}
               >
+                <img src="/icons/noun-metronome-7664072-FFFFFF.svg" alt="" className="h-5 w-5" />
                 {isMetronomeActive ? (
-                  <Pause className="h-3 w-3" />
+                  <Pause className="h-4 w-4" />
                 ) : (
-                  <Play className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <>
+                    <Play className="h-4 w-4 hidden group-hover:block" />
+                    <span className="group-hover:hidden">{tempo}</span>
+                  </>
                 )}
-                {tempo}
               </button>
             ) : (
-              <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-xs bg-muted text-muted-foreground">
+              <div className="fixed top-4 right-4 z-50 px-3 py-1.5 rounded-md text-sm bg-black/70 text-white shadow-lg backdrop-blur-sm flex items-center gap-1">
+                <img src="/icons/noun-metronome-7664072-FFFFFF.svg" alt="" className="h-5 w-5" />
                 {tempo}
               </div>
             );
@@ -1697,7 +1701,7 @@ function MusicViewer({
           {title && (
             <div className="text-center mb-6">
               <h2 className="font-bold leading-tight" style={{ fontSize: `${fontSize * 1.5}px` }}>{title}</h2>
-              <p className="text-muted-foreground italic mt-1" style={{ fontSize: `${fontSize * 0.85}px` }}>
+              <p className="text-muted-foreground italic mt-0.5" style={{ fontSize: `${fontSize * 0.85}px` }}>
                 {isMovie ? 'from' : 'by'} {artist}
               </p>
             </div>
@@ -1749,12 +1753,43 @@ function MusicViewer({
             (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
           }
         }}
-        className="flex flex-col items-center gap-4 py-4 px-2 overflow-auto bg-neutral-800 dark:bg-neutral-900"
+        className="relative flex flex-col items-center gap-4 py-4 px-2 overflow-auto bg-neutral-800 dark:bg-neutral-900"
         style={{
           height: isImmersive ? '100vh' : 'calc(100vh - 4rem)',
           touchAction: "pan-x pan-y",
         }}
       >
+        {/* Tempo badge overlay - fixed in top right corner */}
+        {tempo && (() => {
+          const hasNumericBpm = /\d+/.test(tempo);
+          return hasNumericBpm ? (
+            <button
+              onClick={toggleMetronome}
+              className={cn(
+                "fixed top-4 right-4 z-50 px-3 py-1.5 rounded-md text-sm transition-colors cursor-pointer flex items-center gap-1 group shadow-lg",
+                isMetronomeActive
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-black/70 text-white hover:bg-black/80 backdrop-blur-sm"
+              )}
+              title={isMetronomeActive ? "Click to stop metronome" : "Click to start metronome"}
+            >
+              <img src="/icons/noun-metronome-7664072-FFFFFF.svg" alt="" className="h-5 w-5" />
+              {isMetronomeActive ? (
+                <Pause className="h-4 w-4" />
+              ) : (
+                <>
+                  <Play className="h-4 w-4 hidden group-hover:block" />
+                  <span className="group-hover:hidden">{tempo}</span>
+                </>
+              )}
+            </button>
+          ) : (
+            <div className="fixed top-4 right-4 z-50 px-3 py-1.5 rounded-md text-sm bg-black/70 text-white shadow-lg backdrop-blur-sm flex items-center gap-1">
+              <img src="/icons/noun-metronome-7664072-FFFFFF.svg" alt="" className="h-5 w-5" />
+              {tempo}
+            </div>
+          );
+        })()}
         {imageSources.map((imgSrc, index) => (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -1775,13 +1810,46 @@ function MusicViewer({
 
   // Use seamless PDF viewer for better multi-page experience
   return (
-    <SeamlessPdfViewer
-      data={data}
-      isImmersive={isImmersive}
-      zoom={zoom}
-      onZoomChange={onZoomChange}
-      scrollRef={scrollRef}
-    />
+    <div className="relative h-full">
+      {/* Tempo badge overlay - fixed in top right corner */}
+      {tempo && (() => {
+        const hasNumericBpm = /\d+/.test(tempo);
+        return hasNumericBpm ? (
+          <button
+            onClick={toggleMetronome}
+            className={cn(
+              "fixed top-4 right-4 z-50 px-3 py-1.5 rounded-md text-sm transition-colors cursor-pointer flex items-center gap-1 group shadow-lg",
+              isMetronomeActive
+                ? "bg-primary text-primary-foreground"
+                : "bg-black/70 text-white hover:bg-black/80 backdrop-blur-sm"
+            )}
+            title={isMetronomeActive ? "Click to stop metronome" : "Click to start metronome"}
+          >
+            <img src="/icons/noun-metronome-7664072-FFFFFF.svg" alt="" className="h-5 w-5" />
+            {isMetronomeActive ? (
+              <Pause className="h-4 w-4" />
+            ) : (
+              <>
+                <Play className="h-4 w-4 hidden group-hover:block" />
+                <span className="group-hover:hidden">{tempo}</span>
+              </>
+            )}
+          </button>
+        ) : (
+          <div className="fixed top-4 right-4 z-50 px-3 py-1.5 rounded-md text-sm bg-black/70 text-white shadow-lg backdrop-blur-sm flex items-center gap-1">
+            <img src="/icons/noun-metronome-7664072-FFFFFF.svg" alt="" className="h-5 w-5" />
+            {tempo}
+          </div>
+        );
+      })()}
+      <SeamlessPdfViewer
+        data={data}
+        isImmersive={isImmersive}
+        zoom={zoom}
+        onZoomChange={onZoomChange}
+        scrollRef={scrollRef}
+      />
+    </div>
   );
 }
 
