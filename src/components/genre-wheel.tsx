@@ -193,28 +193,25 @@ export function GenreWheel({ songTitle, songArtist, isMovie, onClose }: GenreWhe
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_oklch(0.65_0.15_75)_0%,_transparent_50%)] opacity-5" />
 
       {/* Header with song title and back button */}
-      <div className="w-full flex flex-col items-center px-4 pt-6 pb-2 relative z-10">
-        <div className="flex items-center justify-center gap-4">
-          <h2 className="text-2xl sm:text-3xl font-bold leading-tight text-gray-100">{songTitle}</h2>
+      <div className="w-full flex flex-col items-center px-4 pt-4 pb-4 relative z-10">
+        <div className="flex items-center justify-center gap-6">
+          <h2 className="text-3xl sm:text-4xl font-bold leading-tight text-gray-100">{songTitle}</h2>
           <Button
             variant="outline"
-            size="sm"
+            size="lg"
             onClick={onClose}
-            className="gap-2 bg-transparent border-gray-500 hover:border-gray-300 hover:bg-gray-800/50 text-gray-200 hover:text-white"
+            className="gap-2 bg-transparent border-gray-500 hover:border-gray-300 hover:bg-gray-800/50 text-gray-200 hover:text-white px-6 py-3 text-lg"
           >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Back to Lyrics</span>
+            <ArrowLeft className="h-6 w-6" />
+            <span>Back to Lyrics</span>
           </Button>
         </div>
-        <p className="text-gray-400 italic text-xl">
-          {isMovie ? "from" : "by"} {songArtist}
-        </p>
       </div>
 
       {/* Wheel content */}
-      <div className="flex flex-col items-center gap-2 w-full px-4 flex-1 min-h-0 relative z-10 pb-4">
+      <div className="flex flex-col items-center gap-1 w-full px-4 flex-1 min-h-0 relative z-10 pb-2">
         {/* Result/Instruction header */}
-        <div className="h-16 flex flex-col items-center justify-center relative w-full flex-shrink-0">
+        <div className="h-10 flex flex-col items-center justify-center relative w-full flex-shrink-0">
           <h3
             className={cn(
               "text-xl sm:text-2xl font-medium text-gray-300 tracking-tight text-center transition-opacity duration-500",
@@ -231,7 +228,7 @@ export function GenreWheel({ songTitle, songArtist, isMovie, onClose }: GenreWhe
           )}
         </div>
 
-        <p className="text-xl text-gray-400 flex items-center gap-2 justify-center font-light tracking-wide flex-shrink-0 pb-2">
+        <p className="text-base text-gray-400 flex items-center gap-2 justify-center font-light tracking-wide flex-shrink-0 pb-2">
           {isDragging ? "Release to spin" : isSpinning ? "Spinning..." : "Drag the wheel to spin"}
         </p>
 
