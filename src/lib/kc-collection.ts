@@ -4,6 +4,41 @@ import { isTauri } from '@tauri-apps/api/core';
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 
 const CHUNK_SIZE = 20;
+const MAX_RETRIES = 3;
+
+// Small delay to let iOS WKWebView garbage collect between chunks
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Fetch with retry logic
+async function fetchWithRetry(
+    fetchFn: typeof fetch,
+    url: string,
+    options: RequestInit,
+    retries = MAX_RETRIES
+): Promise<Response> {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            const response = await fetchFn(url, options);
+            if (response.ok || response.status === 401 || response.status === 400) {
+                return response;
+            }
+            if (attempt < retries) {
+                console.log(`[KC Import] Chunk request failed (${response.status}), retrying (${attempt + 1}/${retries})...`);
+                await delay(500 * (attempt + 1));
+                continue;
+            }
+            return response;
+        } catch (error) {
+            if (attempt < retries) {
+                console.log(`[KC Import] Chunk request error, retrying (${attempt + 1}/${retries})...`);
+                await delay(500 * (attempt + 1));
+                continue;
+            }
+            throw error;
+        }
+    }
+    throw new Error("Unreachable");
+}
 
 export async function importKCCollection(password: string): Promise<boolean> {
     const toastId = toast.loading("Verifying password...");
@@ -20,16 +55,13 @@ export async function importKCCollection(password: string): Promise<boolean> {
             "X-KC-Password": password,
         };
         const body = JSON.stringify({ password });
+        const fetchOptions: RequestInit = { method: "POST", headers, body };
 
         // First request: get chunk 0 plus total count
         const firstUrl = `${baseUrl}?chunk=0&chunkSize=${CHUNK_SIZE}`;
         console.log(`[KC Import] Fetching first chunk from ${firstUrl} (Native: ${isNative})`);
 
-        const firstResponse = await fetchFn(firstUrl, {
-            method: "POST",
-            headers,
-            body,
-        });
+        const firstResponse = await fetchWithRetry(fetchFn, firstUrl, fetchOptions);
 
         if (firstResponse.status === 401) {
             toast.error("Incorrect password", { id: toastId });
@@ -61,16 +93,15 @@ export async function importKCCollection(password: string): Promise<boolean> {
         let importedCount = await importSongsBatch(firstChunkSongs);
         toast.loading(`Importing songs... (${importedCount}/${totalSongs})`, { id: toastId });
 
-        // Fetch remaining chunks
+        // Fetch remaining chunks with delay for memory management
         for (let chunkIndex = 1; chunkIndex < totalChunks; chunkIndex++) {
+            // Give iOS time to GC and flush IndexedDB writes
+            await delay(100);
+
             const chunkUrl = `${baseUrl}?chunk=${chunkIndex}&chunkSize=${CHUNK_SIZE}`;
             console.log(`[KC Import] Fetching chunk ${chunkIndex + 1}/${totalChunks}`);
 
-            const chunkResponse = await fetchFn(chunkUrl, {
-                method: "POST",
-                headers,
-                body,
-            });
+            const chunkResponse = await fetchWithRetry(fetchFn, chunkUrl, fetchOptions);
 
             if (!chunkResponse.ok) {
                 throw new Error(`Failed to load chunk ${chunkIndex}: ${chunkResponse.status}`);

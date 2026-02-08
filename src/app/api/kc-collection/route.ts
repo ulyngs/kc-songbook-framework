@@ -50,58 +50,96 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Check for chunked request parameters
+        const url = new URL(request.url);
+        const chunkParam = url.searchParams.get("chunk");
+
+        if (chunkParam !== null) {
+            // Chunked mode: return a pre-split chunk from Netlify Blobs
+            const chunkIndex = parseInt(chunkParam, 10) || 0;
+
+            if (isNetlifyEnvironment) {
+                const store = getStore("kc-collection");
+
+                // Read manifest for metadata
+                const manifestData = await store.get("manifest.json", { type: "text" });
+                if (!manifestData) {
+                    return NextResponse.json(
+                        { error: "Collection manifest not found. Re-upload with the latest upload script." },
+                        { status: 404 }
+                    );
+                }
+                const manifest = JSON.parse(manifestData);
+
+                // Read the specific chunk
+                const chunkData = await store.get(`chunk-${chunkIndex}.json`, { type: "text" });
+                if (!chunkData) {
+                    return NextResponse.json(
+                        { error: `Chunk ${chunkIndex} not found` },
+                        { status: 404 }
+                    );
+                }
+
+                return new NextResponse(chunkData, {
+                    status: 200,
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Total-Songs": String(manifest.totalSongs),
+                        "X-Total-Chunks": String(manifest.totalChunks),
+                    },
+                });
+            } else {
+                // Local development: read from filesystem and split on the fly
+                const filePath = path.join(process.cwd(), "src", "data", "kc-collection.json");
+                try {
+                    const data = await fs.readFile(filePath, "utf-8");
+                    const allSongs = JSON.parse(data);
+                    const chunkSize = 20;
+                    const totalSongs = allSongs.length;
+                    const totalChunks = Math.ceil(totalSongs / chunkSize);
+                    const start = chunkIndex * chunkSize;
+                    const end = Math.min(start + chunkSize, totalSongs);
+                    const chunk = allSongs.slice(start, end);
+
+                    return new NextResponse(JSON.stringify(chunk), {
+                        status: 200,
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-Total-Songs": String(totalSongs),
+                            "X-Total-Chunks": String(totalChunks),
+                        },
+                    });
+                } catch {
+                    return NextResponse.json(
+                        { error: "Collection not found locally" },
+                        { status: 404 }
+                    );
+                }
+            }
+        }
+
+        // Default: return entire collection (backward compat, non-chunked)
         let data: string | null = null;
 
         if (isNetlifyEnvironment) {
-            // Production: Fetch from Netlify Blobs
             const store = getStore("kc-collection");
             data = await store.get("kc-collection.json", { type: "text" });
         } else {
-            // Local development: Read from filesystem
             const filePath = path.join(process.cwd(), "src", "data", "kc-collection.json");
             try {
                 data = await fs.readFile(filePath, "utf-8");
             } catch {
-                // File doesn't exist locally
                 data = null;
             }
         }
 
         if (!data) {
             return NextResponse.json(
-                { error: "Collection not found. Make sure to upload it to Netlify Blobs for production, or have the file locally for development." },
+                { error: "Collection not found." },
                 { status: 404 }
             );
         }
 
-        // Check for chunked request parameters
-        const url = new URL(request.url);
-        const chunkParam = url.searchParams.get("chunk");
-        const chunkSizeParam = url.searchParams.get("chunkSize");
-
-        if (chunkParam !== null && chunkSizeParam !== null) {
-            // Chunked mode: return a slice of songs to keep memory low on mobile
-            const allSongs = JSON.parse(data);
-            const totalSongs = allSongs.length;
-            const chunkSize = parseInt(chunkSizeParam, 10) || 20;
-            const chunkIndex = parseInt(chunkParam, 10) || 0;
-            const totalChunks = Math.ceil(totalSongs / chunkSize);
-
-            const start = chunkIndex * chunkSize;
-            const end = Math.min(start + chunkSize, totalSongs);
-            const chunk = allSongs.slice(start, end);
-
-            return new NextResponse(JSON.stringify(chunk), {
-                status: 200,
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Total-Songs": String(totalSongs),
-                    "X-Total-Chunks": String(totalChunks),
-                },
-            });
-        }
-
-        // Default: return entire collection (for backward compat)
         return new NextResponse(data, {
             status: 200,
             headers: {
