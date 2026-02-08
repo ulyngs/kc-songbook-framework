@@ -74,6 +74,34 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Check for chunked request parameters
+        const url = new URL(request.url);
+        const chunkParam = url.searchParams.get("chunk");
+        const chunkSizeParam = url.searchParams.get("chunkSize");
+
+        if (chunkParam !== null && chunkSizeParam !== null) {
+            // Chunked mode: return a slice of songs to keep memory low on mobile
+            const allSongs = JSON.parse(data);
+            const totalSongs = allSongs.length;
+            const chunkSize = parseInt(chunkSizeParam, 10) || 20;
+            const chunkIndex = parseInt(chunkParam, 10) || 0;
+            const totalChunks = Math.ceil(totalSongs / chunkSize);
+
+            const start = chunkIndex * chunkSize;
+            const end = Math.min(start + chunkSize, totalSongs);
+            const chunk = allSongs.slice(start, end);
+
+            return new NextResponse(JSON.stringify(chunk), {
+                status: 200,
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Total-Songs": String(totalSongs),
+                    "X-Total-Chunks": String(totalChunks),
+                },
+            });
+        }
+
+        // Default: return entire collection (for backward compat)
         return new NextResponse(data, {
             status: 200,
             headers: {

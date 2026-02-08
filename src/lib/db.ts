@@ -191,6 +191,19 @@ export async function importSongs(json: string): Promise<number> {
   return songs.length;
 }
 
+// Import a batch of pre-parsed songs into IndexedDB
+export async function importSongsBatch(songs: Song[]): Promise<number> {
+  const db = await getDB();
+  const tx = db.transaction(STORE_NAME, 'readwrite');
+
+  await Promise.all([
+    ...songs.map(song => tx.store.put(song)),
+    tx.done,
+  ]);
+
+  return songs.length;
+}
+
 // Import songs from a File object
 export async function importSongsFromFile(file: File): Promise<number> {
   return new Promise((resolve, reject) => {

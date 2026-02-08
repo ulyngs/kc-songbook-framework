@@ -1,7 +1,9 @@
-import { importSongs } from "./db";
+import { importSongsBatch } from "./db";
 import { toast } from "sonner";
 import { isTauri } from '@tauri-apps/api/core';
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
+
+const CHUNK_SIZE = 20;
 
 export async function importKCCollection(password: string): Promise<boolean> {
     const toastId = toast.loading("Verifying password...");
@@ -9,38 +11,77 @@ export async function importKCCollection(password: string): Promise<boolean> {
     try {
         const isNative = isTauri();
         const fetchFn = isNative ? tauriFetch : fetch;
-        const url = isNative
+        const baseUrl = isNative
             ? "https://songbook.karaokecollective.com/api/kc-collection"
             : "/api/kc-collection";
 
-        console.log(`[KC Import] Importing from ${url} (Native: ${isNative})`);
+        const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+            "X-KC-Password": password,
+        };
+        const body = JSON.stringify({ password });
 
-        // Call the server-side API route with the password
-        // Send password in header for iOS WebView compatibility (body sometimes empty)
-        const response = await fetchFn(url, {
+        // First request: get chunk 0 plus total count
+        const firstUrl = `${baseUrl}?chunk=0&chunkSize=${CHUNK_SIZE}`;
+        console.log(`[KC Import] Fetching first chunk from ${firstUrl} (Native: ${isNative})`);
+
+        const firstResponse = await fetchFn(firstUrl, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-KC-Password": password,
-            },
-            body: JSON.stringify({ password }),
+            headers,
+            body,
         });
 
-        if (response.status === 401) {
+        if (firstResponse.status === 401) {
             toast.error("Incorrect password", { id: toastId });
             return false;
         }
 
-        if (!response.ok) {
-            throw new Error(`Failed to load collection: ${response.status} ${response.statusText}`);
+        if (!firstResponse.ok) {
+            throw new Error(`Failed to load collection: ${firstResponse.status} ${firstResponse.statusText}`);
         }
 
-        toast.loading("Importing songs...", { id: toastId });
+        const totalSongsHeader = firstResponse.headers.get("X-Total-Songs");
+        const totalChunksHeader = firstResponse.headers.get("X-Total-Chunks");
 
-        const jsonText = await response.text();
-        const count = await importSongs(jsonText);
+        if (!totalSongsHeader || !totalChunksHeader) {
+            // Fallback: server returned all songs at once (old behavior)
+            toast.loading("Importing songs...", { id: toastId });
+            const jsonText = await firstResponse.text();
+            const songs = JSON.parse(jsonText);
+            const count = await importSongsBatch(songs);
+            toast.success(`Successfully imported ${count} songs from KC Collection!`, { id: toastId });
+            return true;
+        }
 
-        toast.success(`Successfully imported ${count} songs from KC Collection!`, { id: toastId });
+        const totalSongs = parseInt(totalSongsHeader, 10);
+        const totalChunks = parseInt(totalChunksHeader, 10);
+
+        // Import first chunk
+        const firstChunkSongs = await firstResponse.json();
+        let importedCount = await importSongsBatch(firstChunkSongs);
+        toast.loading(`Importing songs... (${importedCount}/${totalSongs})`, { id: toastId });
+
+        // Fetch remaining chunks
+        for (let chunkIndex = 1; chunkIndex < totalChunks; chunkIndex++) {
+            const chunkUrl = `${baseUrl}?chunk=${chunkIndex}&chunkSize=${CHUNK_SIZE}`;
+            console.log(`[KC Import] Fetching chunk ${chunkIndex + 1}/${totalChunks}`);
+
+            const chunkResponse = await fetchFn(chunkUrl, {
+                method: "POST",
+                headers,
+                body,
+            });
+
+            if (!chunkResponse.ok) {
+                throw new Error(`Failed to load chunk ${chunkIndex}: ${chunkResponse.status}`);
+            }
+
+            const chunkSongs = await chunkResponse.json();
+            importedCount += await importSongsBatch(chunkSongs);
+            toast.loading(`Importing songs... (${importedCount}/${totalSongs})`, { id: toastId });
+        }
+
+        toast.success(`Successfully imported ${importedCount} songs from KC Collection!`, { id: toastId });
         return true;
     } catch (error) {
         console.error("Import failed:", error);
