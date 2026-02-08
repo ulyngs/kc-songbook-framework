@@ -2,13 +2,19 @@
 /**
  * Upload a songbook backup file to Netlify Blobs as the KC Collection
  * 
+ * Splits the collection into chunks for efficient mobile import.
+ * Each chunk is stored as a separate blob to avoid reading the full
+ * 59 MB collection on every API request.
+ * 
  * Usage: npm run upload-kc-collection ./path/to/backup.json
  */
 
 import { execSync } from 'child_process';
-import { readFileSync, existsSync } from 'fs';
-import { resolve } from 'path';
+import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from 'fs';
+import { resolve, join } from 'path';
+import { tmpdir } from 'os';
 
+const CHUNK_SIZE = 20;
 const inputFile = process.argv[2];
 
 if (!inputFile) {
@@ -35,15 +41,59 @@ try {
     }
 
     console.log(`📦 Found ${songs.length} songs in backup file`);
-    console.log(`📤 Uploading to Netlify Blobs (kc-collection store)...`);
 
-    // Upload using Netlify CLI
-    execSync(`netlify blob:set kc-collection kc-collection.json --input "${filePath}"`, {
-        stdio: 'inherit',
-        cwd: process.cwd()
-    });
+    // Create temp directory for chunk files
+    const tmpDir = mkdtempSync(join(tmpdir(), 'kc-collection-'));
 
-    console.log(`\n✅ Successfully uploaded ${songs.length} songs to KC Collection!`);
+    try {
+        const totalChunks = Math.ceil(songs.length / CHUNK_SIZE);
+
+        // Upload manifest
+        const manifest = {
+            totalSongs: songs.length,
+            totalChunks,
+            chunkSize: CHUNK_SIZE,
+        };
+        const manifestPath = join(tmpDir, 'manifest.json');
+        writeFileSync(manifestPath, JSON.stringify(manifest));
+
+        console.log(`📤 Uploading manifest and ${totalChunks} chunks to Netlify Blobs...`);
+
+        execSync(`netlify blob:set kc-collection manifest.json --input "${manifestPath}"`, {
+            stdio: 'inherit',
+            cwd: process.cwd()
+        });
+        console.log(`  ✓ Uploaded manifest (${songs.length} songs, ${totalChunks} chunks)`);
+
+        // Upload each chunk
+        for (let i = 0; i < totalChunks; i++) {
+            const start = i * CHUNK_SIZE;
+            const end = Math.min(start + CHUNK_SIZE, songs.length);
+            const chunk = songs.slice(start, end);
+
+            const chunkPath = join(tmpDir, `chunk-${i}.json`);
+            writeFileSync(chunkPath, JSON.stringify(chunk));
+
+            execSync(`netlify blob:set kc-collection "chunk-${i}.json" --input "${chunkPath}"`, {
+                stdio: 'inherit',
+                cwd: process.cwd()
+            });
+            console.log(`  ✓ Uploaded chunk ${i + 1}/${totalChunks} (songs ${start + 1}-${end})`);
+        }
+
+        // Also upload the full collection for backward compatibility
+        console.log(`📤 Uploading full collection (backward compat)...`);
+        execSync(`netlify blob:set kc-collection kc-collection.json --input "${filePath}"`, {
+            stdio: 'inherit',
+            cwd: process.cwd()
+        });
+
+        console.log(`\n✅ Successfully uploaded ${songs.length} songs to KC Collection!`);
+        console.log(`   ${totalChunks} chunks + manifest + full collection`);
+    } finally {
+        // Clean up temp directory
+        rmSync(tmpDir, { recursive: true, force: true });
+    }
 } catch (error) {
     if (error.code === 'ENOENT' || error.message?.includes('netlify')) {
         console.error('❌ Netlify CLI not found. Install it with: npm install -g netlify-cli');
